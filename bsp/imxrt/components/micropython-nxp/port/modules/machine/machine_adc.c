@@ -55,7 +55,7 @@ STATIC void error_check(bool status, const char *msg) {
         nlr_raise(mp_obj_new_exception_msg(&mp_type_OSError, msg));
     }
 }
-//STATIC void machine_adc_init(machine_adc_obj_t *self);
+
 static inline uint32_t adc_get_internal_channel(uint32_t channel) {
     return channel;
 }
@@ -66,17 +66,16 @@ STATIC mp_obj_t machine_adc_make_new(const mp_obj_type_t *type,
     machine_adc_obj_t *self = m_new_obj(machine_adc_obj_t);
     struct rt_adc_device *adc_device = RT_NULL;
     char adc_dev_name[RT_NAME_MAX] = {0};
+		char *ADCSignal[1];
     rt_err_t result = RT_EOK;
 
     // init machine adc object information
     self->channel = 0;
     self->is_init = RT_FALSE;
     self->base.type = &machine_adc_type;
-
     mp_arg_check_num(n_args, n_kw, 1, 2, true);
-//    mp_arg_check_num(n_args, n_kw, 1, 1, false);
+		
     // check input ADC device name or ID
-
     if (mp_obj_is_small_int(args[0])) {
         rt_snprintf(adc_dev_name, sizeof(adc_dev_name), "adc%d", mp_obj_get_int(args[0]));
     } else if (mp_obj_is_qstr(args[0])) {
@@ -90,132 +89,84 @@ STATIC mp_obj_t machine_adc_make_new(const mp_obj_type_t *type,
         nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_ValueError,
                                                 "ADC(%s) don't exist", adc_dev_name));
     }
-    self->adc_device = adc_device;
-
+		self->adc_device = adc_device;
     if (n_args == 2) {
-							mp_obj_t pin_obj = args[1];
+				mp_obj_t pin_obj = args[1];
 		if (MP_OBJ_IS_INT(pin_obj)) {
              self->channel = adc_get_internal_channel(mp_obj_get_int(pin_obj));
     } 
-				else {
-        const pin_obj_t *pin = pin_find(pin_obj);  
-        if ((pin->adc_num & PIN_ADC1) == 0) {
-            // No ADC1 function on that pin
-            nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_ValueError, "pin %q does not have ADC capabilities", pin->name));
-        }
-        self->channel = pin->adc_channel;
+			else {
+						 const pin_obj_t *pin = pin_find(pin_obj);  
+             self->channel = pin->adc_channel;
     }
-//			  self->channel = mp_obj_get_int(args[1]);
-        result = rt_adc_enable(self->adc_device, self->channel);
-        error_check(result == RT_EOK, "ADC enable error");
-        self->is_init = RT_TRUE;
+		result = rt_adc_enable(self->adc_device, self->channel);
+		error_check(result == RT_EOK, "ADC enable error");
+		switch (self->channel){
+				case 0: ADCSignal[0]  = 	"A1";                break;
+				case 1: ADCSignal[0]  = 	"DBG_TXD";					 break;
+				case 2: ADCSignal[0]  = 	"DBG_RXD";					 break;
+				case 5: ADCSignal[0]  = 	"A5";								 break;
+				case 6: ADCSignal[0]  = 	"A4";								 break;
+				case 7: ADCSignal[0]  = 	"D6_PWM2";    			 break;
+				case 8: ADCSignal[0]  = 	"D7_PWM3";				   break;
+				case 9: ADCSignal[0]  = 	"A2";								 break;
+				case 10:ADCSignal[0]  = 	"A3";							   break;
+				case 11:ADCSignal[0]  = 	"D1_TX";						 break;
+				case 12:ADCSignal[0]  = 	"D0_RX";						 break;
+				case 13:ADCSignal[0]  = 	"D3_INT1";					 break;
+				case 15:ADCSignal[0]  = 	"A0";								 break;
+		}	
+		MuxItem_t mux_ADC;
+		Mux_Take(self,"adc",-1,ADCSignal[0],&mux_ADC);
+		mp_hal_ConfigGPIO(mux_ADC.pPinObj, 2 /*MP_HAL_PIN_MODE_ADC*/, MP_HAL_PIN_PULL_NONE); //MP_HAL_PIN_PULL_NONE  GPIO_MODE_INPUT_PUP_WEAK				
+    self->is_init = RT_TRUE;
+		if(mux_ADC.szHint[0]==0x31)
+				self->adc_device->parent.user_data=((ADC_Type *)(0x400C4000));
+		else if (mux_ADC.szHint[0]==0x32)
+				self->adc_device->parent.user_data=((ADC_Type *)(0x400C8000));		
     }
-//		self->adc_device=pin_obj;
-//		machine_adc_init(self);
     return MP_OBJ_FROM_PTR(self);
-
 }
 
-//STATIC void machine_adc_init(machine_adc_obj_t *self) {
-////    self = MP_OBJ_TO_PTR(args[0]);
-////    rt_err_t result = RT_EOK;
-
-////    result = rt_adc_enable(self->adc_device, mp_obj_get_int(args[1]));
-////    error_check(result == RT_EOK, "ADC enable error");
-////    self->channel = mp_obj_get_int(args[1]);
-//			char *ADCSignal[1];
-//		if ((self->channel)==15)
-//			 ADCSignal[0] = "A0";
-//		else if ((self->channel)==0)
-//			 ADCSignal[0] = "A1";	
-//		else if ((self->channel)==9)
-//			 ADCSignal[0] = "A2";
-//		else if ((self->channel)==10)
-//			 ADCSignal[0] = "A3";
-//		else if ((self->channel)==6)
-//			 ADCSignal[0] = "A4";
-//		else if ((self->channel)==5)
-//			 ADCSignal[0] = "A5";	
-//		MuxItem_t mux_ADC;
-//		Mux_Take(self,"adc",-1,ADCSignal[0],&mux_ADC);
-//		mp_hal_ConfigGPIO(mux_ADC.pPinObj, 2 /*MP_HAL_PIN_MODE_ADC*/, MP_HAL_PIN_PULL_NONE); //MP_HAL_PIN_PULL_NONE  GPIO_MODE_INPUT_PUP_WEAK
-//    self->is_init = RT_TRUE;
-//	
-//	
-
-////    return mp_const_none;
-//}
-
 STATIC mp_obj_t machine_adc_init(size_t n_args, const mp_obj_t *args) {
-			machine_adc_obj_t *self = MP_OBJ_TO_PTR(args[0]);
-			mp_obj_t pin_obj = args[1];
-//	    machine_adc_obj_t *self = pin_find(pin_obj);
+		machine_adc_obj_t *self = MP_OBJ_TO_PTR(args[0]);
+		char *ADCSignal[1];
+		mp_obj_t pin_obj = args[1];
 		if (MP_OBJ_IS_INT(pin_obj)) {
              self->channel = adc_get_internal_channel(mp_obj_get_int(pin_obj));
     } 
-				else {
-        const pin_obj_t *pin = pin_find(pin_obj);  
-        if ((pin->adc_num & PIN_ADC1) == 0) {
-            // No ADC1 function on that pin
-            nlr_raise(mp_obj_new_exception_msg_varg(&mp_type_ValueError, "pin %q does not have ADC capabilities", pin->name));
-        }
-        self->channel = pin->adc_channel;
+			else {
+						 const pin_obj_t *pin = pin_find(pin_obj);  
+						 self->channel = pin->adc_channel;
     }
-	
-	
     rt_err_t result = RT_EOK;
-
     result = rt_adc_enable(self->adc_device, self->channel);
     error_check(result == RT_EOK, "ADC enable error");
-					char *ADCSignal[1];
-		if ((self->channel)==15)
-			 ADCSignal[0] = "A0";
-		else if ((self->channel)==0)
-			 ADCSignal[0] = "A1";	
-		else if ((self->channel)==9)
-			 ADCSignal[0] = "A2";
-		else if ((self->channel)==10)
-			 ADCSignal[0] = "A3";
-		else if ((self->channel)==6)
-			 ADCSignal[0] = "A4";
-		else if ((self->channel)==5)
-			 ADCSignal[0] = "A5";	
-		else if ((self->channel)==1)
-			 ADCSignal[0] = "DBG_TXD";	
-		else if ((self->channel)==2)
-			 ADCSignal[0] = "DBG_RXD";	
-		else if ((self->channel)==7)
-			 ADCSignal[0] = "D6_PWM2";	
-		else if ((self->channel)==8)
-			 ADCSignal[0] = "D7_PWM3";	
-		else if ((self->channel)==11)
-			 ADCSignal[0] = "D1_TX";	
-		else if ((self->channel)==12)
-			 ADCSignal[0] = "D0_RX";	
-		else if ((self->channel)==13)
-			 ADCSignal[0] = "D3_INT1";		
+		switch (self->channel){
+				case 0: ADCSignal[0]  = 	"A1";                break;
+				case 1: ADCSignal[0]  = 	"DBG_TXD";					 break;
+				case 2: ADCSignal[0]  = 	"DBG_RXD";					 break;
+				case 5: ADCSignal[0]  = 	"A5";								 break;
+				case 6: ADCSignal[0]  = 	"A4";								 break;
+				case 7: ADCSignal[0]  = 	"D6_PWM2";    			 break;
+				case 8: ADCSignal[0]  = 	"D7_PWM3";				   break;
+				case 9: ADCSignal[0]  = 	"A2";								 break;
+				case 10:ADCSignal[0]  = 	"A3";							   break;
+				case 11:ADCSignal[0]  = 	"D1_TX";						 break;
+				case 12:ADCSignal[0]  = 	"D0_RX";						 break;
+				case 13:ADCSignal[0]  = 	"D3_INT1";					 break;
+				case 15:ADCSignal[0]  = 	"A0";								 break;
+		}	
 		MuxItem_t mux_ADC;
 		Mux_Take(self,"adc",-1,ADCSignal[0],&mux_ADC);
 		mp_hal_ConfigGPIO(mux_ADC.pPinObj, 2 /*MP_HAL_PIN_MODE_ADC*/, MP_HAL_PIN_PULL_NONE); //MP_HAL_PIN_PULL_NONE  GPIO_MODE_INPUT_PUP_WEAK
     self->is_init = RT_TRUE;
 		if(mux_ADC.szHint[0]==0x31)
-		 self->adc_device->parent.user_data=((ADC_Type *)(0x400C4000));
+				self->adc_device->parent.user_data=((ADC_Type *)(0x400C4000));
 		else if (mux_ADC.szHint[0]==0x32)
-		 self->adc_device->parent.user_data=((ADC_Type *)(0x400C8000));
+				self->adc_device->parent.user_data=((ADC_Type *)(0x400C8000));
     return mp_const_none;
 }
-
-//STATIC mp_obj_t machine_adc_init(size_t n_args, const mp_obj_t *args) {
-//    machine_adc_obj_t *self = MP_OBJ_TO_PTR(args[0]);
-//    rt_err_t result = RT_EOK;
-
-//    result = rt_adc_enable(self->adc_device, mp_obj_get_int(args[1]));
-//    error_check(result == RT_EOK, "ADC enable error");
-//    self->channel = mp_obj_get_int(args[1]);
-//    self->is_init = RT_TRUE;
-
-//    return mp_const_none;
-//}
 
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(machine_adc_init_obj, 2, 2, machine_adc_init);
 
