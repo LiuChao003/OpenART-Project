@@ -1,0 +1,2785 @@
+commit 6779bbeb9240119ac6a484cafb8eee640a097784
+Author: xinyi.gao <xinyi.gao@nxp.com>
+Date:   Tue Jan 14 16:09:11 2020 +0800
+
+    /*Add SAI and sdcard driver to i.MXRT1050 board*/
+
+diff --git a/bsp/imxrt/imxrt1052-nxp-evk/board/Kconfig b/bsp/imxrt/imxrt1052-nxp-evk/board/Kconfig
+index d77cd8d8f..c009a2559 100644
+--- a/bsp/imxrt/imxrt1052-nxp-evk/board/Kconfig
++++ b/bsp/imxrt/imxrt1052-nxp-evk/board/Kconfig
+@@ -12,6 +12,16 @@ config SOC_MIMXRT1052DVL6B
+     select RT_USING_USER_MAIN
+     default y
+ 
++menu "Onboard Peripheral Drivers"
++
++    config BSP_USING_POT
++        bool "Enable potentiometer"
++        select BSP_USING_ADC
++        select BSP_USING_ADC1
++        default n 
++
++endmenu
++
+ menu "On-chip Peripheral Drivers"
+ 
+     config BSP_USING_DMA
+@@ -84,8 +94,127 @@ menu "On-chip Peripheral Drivers"
+                         depends on BSP_LPUART3_TX_USING_DMA
+                         int "Set LPUART3 TX DMA channel (0-32)"
+                         default 1
++        endif
++		menuconfig BSP_USING_HWTIMER
++        bool "Enable GPT"
++        default n
++        select RT_USING_HWTIMER
++        if BSP_USING_HWTIMER
++            config BSP_USING_HWTIMER1
++                bool "Enable GPT1"
++                default n
++
++            config BSP_USING_HWTIMER2
++                bool "Enable GPT2"
++                default n
++        endif
++
++    menuconfig BSP_USING_PWM
++        bool "Enable PWM"
++        default n
++        select RT_USING_PWM
++        if BSP_USING_PWM
++            menuconfig BSP_USING_PWM1
++                bool "Enable output pwm1"
++                default n
++                if BSP_USING_PWM1
++                    config BSP_USING_PWM1_CH3
++                        bool "Enable PWM1 channel3"
++                        default n
++                endif
++
++            menuconfig BSP_USING_PWM4
++                bool "Enable output pwm4"
++                default n
++                if BSP_USING_PWM4
++                    config BSP_USING_PWM4_CH0
++                        bool "Enable PWM4 channel0"
++                        default n
++
++                    config BSP_USING_PWM4_CH1
++                        bool "Enable PWM4 channel1"
++                        default n
++                endif
++        endif
++    menuconfig BSP_USING_SPI
++        bool "Enable SPI"
++        default n
++        select RT_USING_SPI
++        if BSP_USING_SPI
++            menuconfig BSP_USING_SPI1
++                bool "Enable SPI1"
++                default n
++                if BSP_USING_SPI1
++                    config BSP_SPI1_USING_DMA
++                         bool "Enable SPI1 DMA"
++                         default n
++				endif		 
+         endif
+ 
++    menuconfig BSP_USING_I2C
++        bool "Enable I2C"
++        select RT_USING_I2C
++        default n
++        if BSP_USING_I2C
++            config BSP_USING_I2C1
++                bool "Enable I2C1"
++                default n
++            choice
++                prompt "Select I2C1 badurate"
++                default HW_I2C1_BADURATE_100kHZ
++
++                config HW_I2C1_BADURATE_100kHZ
++                    bool "Badurate 100kHZ"
++
++                config HW_I2C1_BADURATE_400kHZ
++                    bool "Badurate 400kHZ"
++            endchoice
++        endif
++
++    config BSP_USING_RTC
++        bool "Enable RTC"
++        select RT_USING_RTC
++        default n
++		
++    menuconfig BSP_USING_ADC
++        bool "Enable ADC"
++        default n
++        select RT_USING_ADC
++        if BSP_USING_ADC
++            config BSP_USING_ADC1
++                bool "Enable ADC1"
++                default n
++        endif
++
++    config BSP_USING_ON_CHIP_FLASH
++        bool "Enable on-chip FLASH"
++        default n 	
++		
++	menuconfig BSP_USING_WDT
++        bool "Enable Watchdog Timer"
++        select RT_USING_WDT
++        default n	
++		if BSP_USING_WDT
++            config BSP_USING_WDT1
++                bool "Enable WDT1"
++                default n
++			config BSP_USING_WDT3
++                bool "Enable WDT3"
++                default n
++        endif
++	menuconfig BSP_USING_CAN
++        bool "Enable CAN"
++        select RT_USING_CAN
++        default n	
++		if BSP_USING_CAN
++            config BSP_USING_CAN1"
++                bool "Enable CAN1"			
++                default n
++			config BSP_USING_CAN2
++                bool "Enable CAN2"
++                default n
++        endif		
++
+ endmenu
+ 
+ menu "Onboard Peripheral Drivers"
+@@ -99,6 +228,14 @@ menu "Onboard Peripheral Drivers"
+ 	select PHY_USING_KSZ8081
+ 	select RT_USING_NETDEV
+ 	default n
++	
++    menuconfig BSP_USING_SDIO
++	bool "Enable SDcard"
++	select RT_USING_SDIO
++	select RT_USING_DFS_DEVFS
++    select RT_USING_DFS
++	select RT_USING_DFS_ELMFAT
++	default n
+ 
+ 	if BSP_USING_ETH
+ 		config PHY_USING_KSZ8081
+@@ -110,6 +247,41 @@ menu "Onboard Peripheral Drivers"
+ 				depends on PHY_USING_KSZ8081
+ 				default y
+ 	endif
++	config BSP_USING_RGB
++    bool "Enable RGB LED (PWM1_CH3A, PWM4_CH0A and PWM4_CH1A)"
++    select BSP_USING_PWM1
++    select BSP_USING_PWM4
++    select BSP_USING_PWM1_CH3
++    select BSP_USING_PWM4_CH0
++    select BSP_USING_PWM4_CH1
++    default n
++    config BSP_USING_AUDIO
++        bool "Enable AUDIO (WM8960)"
++        select BSP_USING_I2C1
++        select RT_USING_AUDIO
++        default n
++        
++        if BSP_USING_AUDIO
++            menuconfig BSP_USING_AUDIO_PLAY
++            bool "Enable Audio Play"
++            default y
++			    if BSP_USING_AUDIO_PLAY
++                    config BSP_AUDIO_USING_DMA
++                        bool "Enable AUDIO DMA"
++                        default y
++				endif
++
++            menuconfig BSP_USING_AUDIO_RECORD
++            bool "Enable Audio Record"
++            select BSP_USING_AUDIO_PLAY
++            default n
++			    if BSP_USING_AUDIO_RECORD
++                    config BSP_AUDIO_USING_DMA
++                        bool "Enable AUDIO DMA"
++                        default n
++				endif			
++        endif 
++
+ endmenu
+ 
+ menu "Board extended module Drivers"
+diff --git a/bsp/imxrt/imxrt1052-nxp-evk/board/board.c b/bsp/imxrt/imxrt1052-nxp-evk/board/board.c
+index 0566c2166..3a6861797 100644
+--- a/bsp/imxrt/imxrt1052-nxp-evk/board/board.c
++++ b/bsp/imxrt/imxrt1052-nxp-evk/board/board.c
+@@ -430,9 +430,229 @@ void imxrt_enet_phy_reset_by_gpio(void)
+ }
+ #endif /* BSP_USING_ETH */
+ 
++#ifdef BSP_USING_AUDIO
++void imxrt_sai_pins_init(void)
++{                                   /* Software Input On Field: Input Path is determined by functionality */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_AD_B1_00_LPI2C1_SCL,        /* GPIO_AD_B1_00 is configured as LPI2C1_SCL */
++      1U);                                    /* Software Input On Field: Force input path of pad GPIO_AD_B1_00 */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_AD_B1_01_LPI2C1_SDA,        /* GPIO_AD_B1_01 is configured as LPI2C1_SDA */
++      1U);                                    /* Software Input On Field: Force input path of pad GPIO_AD_B1_01 */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_AD_B1_09_SAI1_MCLK,         /* GPIO_AD_B1_09 is configured as SAI1_MCLK */
++      1U);                                    /* Software Input On Field: Force input path of pad GPIO_AD_B1_09 */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_AD_B1_12_SAI1_RX_DATA00,    /* GPIO_AD_B1_12 is configured as SAI1_RX_DATA00 */
++      1U);                                    /* Software Input On Field: Force input path of pad GPIO_AD_B1_12 */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_AD_B1_13_SAI1_TX_DATA00,    /* GPIO_AD_B1_13 is configured as SAI1_TX_DATA00 */
++      1U);                                    /* Software Input On Field: Force input path of pad GPIO_AD_B1_13 */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_AD_B1_14_SAI1_TX_BCLK,      /* GPIO_AD_B1_14 is configured as SAI1_TX_BCLK */
++      1U);                                    /* Software Input On Field: Force input path of pad GPIO_AD_B1_14 */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_AD_B1_15_SAI1_TX_SYNC,      /* GPIO_AD_B1_15 is configured as SAI1_TX_SYNC */
++      1U);                                    /* Software Input On Field: Force input path of pad GPIO_AD_B1_15 */
++
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_AD_B1_00_LPI2C1_SCL,        /* GPIO_AD_B1_00 PAD functional properties : */
++      0xD8B0u);                               /* Slew Rate Field: Slow Slew Rate
++                                                 Drive Strength Field: R0/6
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Enabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Keeper
++                                                 Pull Up / Down Config. Field: 22K Ohm Pull Up
++                                                 Hyst. Enable Field: Hysteresis Disabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_AD_B1_01_LPI2C1_SDA,        /* GPIO_AD_B1_01 PAD functional properties : */
++      0xD8B0u);                               /* Slew Rate Field: Slow Slew Rate
++                                                 Drive Strength Field: R0/6
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Enabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Keeper
++                                                 Pull Up / Down Config. Field: 22K Ohm Pull Up
++                                                 Hyst. Enable Field: Hysteresis Disabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_AD_B1_09_SAI1_MCLK,         /* GPIO_AD_B1_09 PAD functional properties : */
++      0x10B0u);                               /* Slew Rate Field: Slow Slew Rate
++                                                 Drive Strength Field: R0/6
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Keeper
++                                                 Pull Up / Down Config. Field: 100K Ohm Pull Down
++                                                 Hyst. Enable Field: Hysteresis Disabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_AD_B1_12_SAI1_RX_DATA00,    /* GPIO_AD_B1_12 PAD functional properties : */
++      0x10B0u);                               /* Slew Rate Field: Slow Slew Rate
++                                                 Drive Strength Field: R0/6
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Keeper
++                                                 Pull Up / Down Config. Field: 100K Ohm Pull Down
++                                                 Hyst. Enable Field: Hysteresis Disabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_AD_B1_13_SAI1_TX_DATA00,    /* GPIO_AD_B1_13 PAD functional properties : */
++      0x10B0u);                               /* Slew Rate Field: Slow Slew Rate
++                                                 Drive Strength Field: R0/6
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Keeper
++                                                 Pull Up / Down Config. Field: 100K Ohm Pull Down
++                                                 Hyst. Enable Field: Hysteresis Disabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_AD_B1_14_SAI1_TX_BCLK,      /* GPIO_AD_B1_14 PAD functional properties : */
++      0x10B0u);                               /* Slew Rate Field: Slow Slew Rate
++                                                 Drive Strength Field: R0/6
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Keeper
++                                                 Pull Up / Down Config. Field: 100K Ohm Pull Down
++                                                 Hyst. Enable Field: Hysteresis Disabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_AD_B1_15_SAI1_TX_SYNC,      /* GPIO_AD_B1_15 PAD functional properties : */
++      0x10B0u);                               /* Slew Rate Field: Slow Slew Rate
++                                                 Drive Strength Field: R0/6
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Keeper
++                                                 Pull Up / Down Config. Field: 100K Ohm Pull Down
++                                                 Hyst. Enable Field: Hysteresis Disabled */
++
++}
++#endif
+ /**
+  * This function will initial rt1050 board.
+  */
++#ifdef BSP_USING_SDIO
++void imxrt_SDcard_pins_init(void)
++{
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_AD_B0_05_GPIO1_IO05,        /* GPIO_AD_B0_05 is configured as GPIO1_IO05 */
++      0U);                                    /* Software Input On Field: Input Path is determined by functionality */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_B1_12_GPIO2_IO28,           /* GPIO_B1_12 is configured as GPIO2_IO28 */
++      0U);                                    /* Software Input On Field: Input Path is determined by functionality */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_B1_14_USDHC1_VSELECT,       /* GPIO_B1_14 is configured as USDHC1_VSELECT */
++      0U);                                    /* Software Input On Field: Input Path is determined by functionality */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_SD_B0_00_USDHC1_CMD,        /* GPIO_SD_B0_00 is configured as USDHC1_CMD */
++      0U);                                    /* Software Input On Field: Input Path is determined by functionality */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_SD_B0_01_USDHC1_CLK,        /* GPIO_SD_B0_01 is configured as USDHC1_CLK */
++      0U);                                    /* Software Input On Field: Input Path is determined by functionality */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_SD_B0_02_USDHC1_DATA0,      /* GPIO_SD_B0_02 is configured as USDHC1_DATA0 */
++      0U);                                    /* Software Input On Field: Input Path is determined by functionality */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_SD_B0_03_USDHC1_DATA1,      /* GPIO_SD_B0_03 is configured as USDHC1_DATA1 */
++      0U);                                    /* Software Input On Field: Input Path is determined by functionality */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_SD_B0_04_USDHC1_DATA2,      /* GPIO_SD_B0_04 is configured as USDHC1_DATA2 */
++      0U);                                    /* Software Input On Field: Input Path is determined by functionality */
++  IOMUXC_SetPinMux(
++      IOMUXC_GPIO_SD_B0_05_USDHC1_DATA3,      /* GPIO_SD_B0_05 is configured as USDHC1_DATA3 */
++      0U);                                    /* Software Input On Field: Input Path is determined by functionality */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_AD_B0_05_GPIO1_IO05,        /* GPIO_AD_B0_05 PAD functional properties : */
++      0x10B0u);                               /* Slew Rate Field: Slow Slew Rate
++                                                 Drive Strength Field: R0/6
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Keeper
++                                                 Pull Up / Down Config. Field: 100K Ohm Pull Down
++                                                 Hyst. Enable Field: Hysteresis Disabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_B1_12_GPIO2_IO28,           /* GPIO_B1_12 PAD functional properties : */
++      0x017089u);                             /* Slew Rate Field: Fast Slew Rate
++                                                 Drive Strength Field: R0(150 Ohm @ 3.3V, 260 Ohm@1.8V)
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Pull
++                                                 Pull Up / Down Config. Field: 47K Ohm Pull Up
++                                                 Hyst. Enable Field: Hysteresis Enabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_B1_14_USDHC1_VSELECT,       /* GPIO_B1_14 PAD functional properties : */
++      0x0170A1u);                             /* Slew Rate Field: Fast Slew Rate
++                                                 Drive Strength Field: R0/4
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Pull
++                                                 Pull Up / Down Config. Field: 47K Ohm Pull Up
++                                                 Hyst. Enable Field: Hysteresis Enabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_SD_B0_00_USDHC1_CMD,        /* GPIO_SD_B0_00 PAD functional properties : */
++      0x017089u);                             /* Slew Rate Field: Fast Slew Rate
++                                                 Drive Strength Field: R0(150 Ohm @ 3.3V, 260 Ohm@1.8V)
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Pull
++                                                 Pull Up / Down Config. Field: 47K Ohm Pull Up
++                                                 Hyst. Enable Field: Hysteresis Enabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_SD_B0_01_USDHC1_CLK,        /* GPIO_SD_B0_01 PAD functional properties : */
++      0x014089u);                             /* Slew Rate Field: Fast Slew Rate
++                                                 Drive Strength Field: R0(150 Ohm @ 3.3V, 260 Ohm@1.8V)
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Disabled
++                                                 Pull / Keep Select Field: Keeper
++                                                 Pull Up / Down Config. Field: 47K Ohm Pull Up
++                                                 Hyst. Enable Field: Hysteresis Enabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_SD_B0_02_USDHC1_DATA0,      /* GPIO_SD_B0_02 PAD functional properties : */
++      0x017089u);                             /* Slew Rate Field: Fast Slew Rate
++                                                 Drive Strength Field: R0(150 Ohm @ 3.3V, 260 Ohm@1.8V)
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Pull
++                                                 Pull Up / Down Config. Field: 47K Ohm Pull Up
++                                                 Hyst. Enable Field: Hysteresis Enabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_SD_B0_03_USDHC1_DATA1,      /* GPIO_SD_B0_03 PAD functional properties : */
++      0x017089u);                             /* Slew Rate Field: Fast Slew Rate
++                                                 Drive Strength Field: R0(150 Ohm @ 3.3V, 260 Ohm@1.8V)
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Pull
++                                                 Pull Up / Down Config. Field: 47K Ohm Pull Up
++                                                 Hyst. Enable Field: Hysteresis Enabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_SD_B0_04_USDHC1_DATA2,      /* GPIO_SD_B0_04 PAD functional properties : */
++      0x017089u);                             /* Slew Rate Field: Fast Slew Rate
++                                                 Drive Strength Field: R0(150 Ohm @ 3.3V, 260 Ohm@1.8V)
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Pull
++                                                 Pull Up / Down Config. Field: 47K Ohm Pull Up
++                                                 Hyst. Enable Field: Hysteresis Enabled */
++  IOMUXC_SetPinConfig(
++      IOMUXC_GPIO_SD_B0_05_USDHC1_DATA3,      /* GPIO_SD_B0_05 PAD functional properties : */
++      0x017089u);                             /* Slew Rate Field: Fast Slew Rate
++                                                 Drive Strength Field: R0(150 Ohm @ 3.3V, 260 Ohm@1.8V)
++                                                 Speed Field: medium(100MHz)
++                                                 Open Drain Enable Field: Open Drain Disabled
++                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
++                                                 Pull / Keep Select Field: Pull
++                                                 Pull Up / Down Config. Field: 47K Ohm Pull Up
++                                                 Hyst. Enable Field: Hysteresis Enabled */	
++}
++#endif
+ void rt_hw_board_init()
+ {
+     BOARD_ConfigMPU();
+@@ -454,6 +674,14 @@ void rt_hw_board_init()
+     imxrt_dma_init();
+ #endif
+ 
++#ifdef BSP_USING_AUDIO
++    imxrt_sai_pins_init();
++#endif
++
++#ifdef BSP_USING_SDIO
++    imxrt_SDcard_pins_init();
++#endif
++
+ #ifdef RT_USING_HEAP
+     rt_system_heap_init((void *)HEAP_BEGIN, (void *)HEAP_END);
+ #endif
+diff --git a/bsp/imxrt/libraries/MIMXRT1050/SConscript b/bsp/imxrt/libraries/MIMXRT1050/SConscript
+index a689cd8cb..6f871d661 100644
+--- a/bsp/imxrt/libraries/MIMXRT1050/SConscript
++++ b/bsp/imxrt/libraries/MIMXRT1050/SConscript
+@@ -61,11 +61,12 @@ if GetDepend(['BSP_USING_CAN']):
+ if GetDepend(['BSP_USING_ETH']):
+     src += ['MIMXRT1052/drivers/fsl_enet.c']
+ 
+-if GetDepend(['RT_USING_SDIO']):
+-    src += ['MIMXRT1052/drivers/']
+-
++if GetDepend(['BSP_USING_SDIO']):
++    src += ['MIMXRT1052/drivers/fsl_usdhc.c']
++    
+ if GetDepend(['RT_USING_AUDIO']):
+     src += ['MIMXRT1052/drivers/fsl_sai.c']
++    src += ['MIMXRT1052/drivers/fsl_sai_edma.c']
+ 
+ if GetDepend(['BSP_USING_LTDC']):
+     src += ['MIMXRT1052/drivers/']
+@@ -75,6 +76,7 @@ if GetDepend(['BSP_USING_DMA']):
+     src += ['MIMXRT1052/drivers/fsl_edma.c']
+     src += ['MIMXRT1052/drivers/fsl_lpuart_edma.c']
+     src += ['MIMXRT1052/drivers/fsl_lpspi_edma.c']
++    
+ 
+ group = DefineGroup('Libraries', src, depend = [''], CPPPATH = path)
+ 
+diff --git a/bsp/imxrt/libraries/drivers/SConscript b/bsp/imxrt/libraries/drivers/SConscript
+index 7320ff84a..8d1b14993 100644
+--- a/bsp/imxrt/libraries/drivers/SConscript
++++ b/bsp/imxrt/libraries/drivers/SConscript
+@@ -43,6 +43,13 @@ if GetDepend('BSP_USING_LCD'):
+ if GetDepend('BSP_USING_ETH'):
+     src += ['drv_eth.c']
+ 
++if GetDepend('BSP_USING_AUDIO'):
++    src += ['drv_sai.c']
++    src += ['bsp_wm8960.c']
++  
++if GetDepend('BSP_USING_SDIO'):
++    src += ['drv_sdio.c'] 
++    
+ path =  [cwd,cwd + '/config']
+ 
+ group = DefineGroup('Drivers', src, depend = [''], CPPPATH = path)
+diff --git a/bsp/imxrt/libraries/drivers/bsp_wm8960.c b/bsp/imxrt/libraries/drivers/bsp_wm8960.c
+new file mode 100644
+index 000000000..641bda0c5
+--- /dev/null
++++ b/bsp/imxrt/libraries/drivers/bsp_wm8960.c
+@@ -0,0 +1,615 @@
++#include <rtthread.h>
++#include <rtdevice.h>
++
++#include "bsp_wm8960.h"
++#include <stdlib.h>
++#include <drv_log.h>
++#include <rthw.h>
++static rt_uint16_t wm8960_regval_tbl[56] = {
++    0x0097, 0x0097, 0x0000, 0x0000, 0x0000, 0x0008, 0x0000, 0x000a, 0x01c0, 0x0000, 0x00ff, 0x00ff, 0x0000, 0x0000,
++    0x0000, 0x0000, 0x0000, 0x007b, 0x0100, 0x0032, 0x0000, 0x00c3, 0x00c3, 0x01c0, 0x0000, 0x0000, 0x0000, 0x0000,
++    0x0000, 0x0000, 0x0000, 0x0000, 0x0100, 0x0100, 0x0050, 0x0050, 0x0050, 0x0050, 0x0000, 0x0000, 0x0000, 0x0000,
++    0x0040, 0x0000, 0x0000, 0x0050, 0x0050, 0x0000, 0x0002, 0x0037, 0x004d, 0x0080, 0x0008, 0x0031, 0x0026, 0x00e9,
++};
++static rt_uint16_t reg_cache[WM8960_CACHEREGNUM];
++static void wm8960_write_reg(struct rt_i2c_bus_device *dev,  rt_uint8_t reg, rt_uint16_t val)
++{
++    struct rt_i2c_msg msg;
++    rt_uint8_t send_buffer[2];
++    RT_ASSERT(dev != RT_NULL);
++    /* store temp */
++    rt_uint16_t buff = val;
++    reg_cache[reg] = buff;
++    send_buffer[0] = (reg << 1) | ((val >> 8U) & 0x0001U);
++    send_buffer[1] = (rt_uint8_t)(val & 0xFF);
++    msg.addr = 0x1A;////WM8960_I2C_ADDR 0x1A
++    msg.flags = RT_I2C_WR;
++    msg.len = 2;
++    msg.buf = send_buffer;
++    rt_i2c_transfer(dev, &msg, 1);
++}
++static void wm8960_read_reg(struct rt_i2c_bus_device *dev, rt_uint8_t reg, rt_uint16_t *val)
++{
++    *val = reg_cache[reg];
++}
++
++static void wm8960_modify_reg(struct rt_i2c_bus_device *dev, rt_uint8_t reg, rt_uint16_t mask, rt_uint16_t val)
++{
++    uint16_t reg_val = 0;
++    wm8960_read_reg(dev, reg, &reg_val);
++    reg_val &= (rt_uint16_t)~mask;
++    reg_val |= val;
++
++    wm8960_write_reg(dev, reg, reg_val);
++}
++void WM8960_SetMasterSlave(struct rt_i2c_bus_device *dev, rt_bool_t master)
++{
++    if (master == 1)
++    {
++        wm8960_modify_reg(dev, WM8960_IFACE1, WM8960_IFACE1_MS_MASK, WM8960_IFACE1_MS(WM8960_IFACE1_MASTER));
++    }
++    else
++    {
++        wm8960_modify_reg(dev, WM8960_IFACE1, WM8960_IFACE1_MS_MASK, WM8960_IFACE1_MS(WM8960_IFACE1_SLAVE));
++    }
++}
++
++void WM8960_SetModule(struct rt_i2c_bus_device *dev, wm8960_module_t module, rt_bool_t isEnabled)
++{
++    switch (module)
++    {
++    case kWM8960_ModuleADC:
++        wm8960_modify_reg(dev, WM8960_POWER1, WM8960_POWER1_ADCL_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER1_ADCL_SHIFT));
++        wm8960_modify_reg(dev, WM8960_POWER1, WM8960_POWER1_ADCR_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER1_ADCR_SHIFT));
++        break;
++    case kWM8960_ModuleDAC:
++        wm8960_modify_reg(dev, WM8960_POWER2, WM8960_POWER2_DACL_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER2_DACL_SHIFT));
++        wm8960_modify_reg(dev, WM8960_POWER2, WM8960_POWER2_DACR_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER2_DACR_SHIFT));
++        break;
++    case kWM8960_ModuleVREF:
++        wm8960_modify_reg(dev, WM8960_POWER1, WM8960_POWER1_VREF_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER1_VREF_SHIFT));
++        break;
++    case kWM8960_ModuleLineIn:
++        wm8960_modify_reg(dev, WM8960_POWER1, WM8960_POWER1_AINL_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER1_AINL_SHIFT));
++        wm8960_modify_reg(dev, WM8960_POWER1, WM8960_POWER1_AINR_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER1_AINR_SHIFT));
++        break;
++    case kWM8960_ModuleLineOut:
++        wm8960_modify_reg(dev, WM8960_POWER2, WM8960_POWER2_LOUT1_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER2_LOUT1_SHIFT));
++        wm8960_modify_reg(dev, WM8960_POWER2, WM8960_POWER2_ROUT1_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER2_ROUT1_SHIFT));
++        break;
++    case kWM8960_ModuleMICB:
++        wm8960_modify_reg(dev, WM8960_POWER1, WM8960_POWER1_MICB_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER1_MICB_SHIFT));
++        break;
++    case kWM8960_ModuleSpeaker:
++        wm8960_modify_reg(dev, WM8960_POWER2, WM8960_POWER2_SPKL_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER2_SPKL_SHIFT));
++        wm8960_modify_reg(dev, WM8960_POWER2, WM8960_POWER2_SPKR_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER2_SPKR_SHIFT));
++        wm8960_write_reg(dev, WM8960_CLASSD1, 0xF7);
++        break;
++    case kWM8960_ModuleMIC:
++        wm8960_modify_reg(dev, WM8960_POWER3, WM8960_POWER3_LMIC_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER3_LMIC_SHIFT));
++        wm8960_modify_reg(dev, WM8960_POWER3, WM8960_POWER3_RMIC_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER3_RMIC_SHIFT));
++        break;
++    case kWM8960_ModuleOMIX:
++        wm8960_modify_reg(dev, WM8960_POWER3, WM8960_POWER3_LOMIX_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER3_LOMIX_SHIFT));
++        wm8960_modify_reg(dev, WM8960_POWER3, WM8960_POWER3_ROMIX_MASK,
++                          ((uint16_t)isEnabled << WM8960_POWER3_ROMIX_SHIFT));
++        break;
++    default:
++        break;
++    }
++}
++
++void WM8960_SetDataRoute(struct rt_i2c_bus_device *dev, wm8960_route_t route)
++{
++    switch (route)
++    {
++    case kWM8960_RouteBypass:
++        /* Bypass means from line-in to HP*/
++        /*
++         * Left LINPUT3 to left output mixer, LINPUT3 left output mixer volume = 0dB
++         */
++        wm8960_write_reg(dev, WM8960_LOUTMIX, 0x80);
++
++        /*
++         * Right RINPUT3 to right output mixer, RINPUT3 right output mixer volume = 0dB
++         */
++        wm8960_write_reg(dev, WM8960_ROUTMIX, 0x80);
++        break;
++    case kWM8960_RoutePlayback:
++        /* Data route I2S_IN-> DAC-> HP */
++        /*
++         * Left DAC to left output mixer, LINPUT3 left output mixer volume = 0dB
++         */
++        wm8960_write_reg(dev, WM8960_LOUTMIX, 0x100);
++
++        /*
++         * Right DAC to right output mixer, RINPUT3 right output mixer volume = 0dB
++         */
++        wm8960_write_reg(dev, WM8960_ROUTMIX, 0x100);
++        wm8960_write_reg(dev, WM8960_POWER3, 0x0C);
++        /* Set power for DAC */
++        WM8960_SetModule(dev, kWM8960_ModuleDAC, RT_TRUE);
++        WM8960_SetModule(dev, kWM8960_ModuleOMIX, RT_TRUE);
++        WM8960_SetModule(dev, kWM8960_ModuleLineOut, RT_TRUE);
++        break;
++    case kWM8960_RoutePlaybackandRecord:
++        /*
++         * Left DAC to left output mixer, LINPUT3 left output mixer volume = 0dB
++         */
++        wm8960_write_reg(dev, WM8960_LOUTMIX, 0x100);
++
++        /*
++         * Right DAC to right output mixer, RINPUT3 right output mixer volume = 0dB
++         */
++        wm8960_write_reg(dev, WM8960_ROUTMIX, 0x100);
++        wm8960_write_reg(dev, WM8960_POWER3, 0x3C);
++        WM8960_SetModule(dev, kWM8960_ModuleDAC, RT_TRUE);
++        WM8960_SetModule(dev, kWM8960_ModuleADC, RT_TRUE);
++        WM8960_SetModule(dev, kWM8960_ModuleLineIn, RT_TRUE);
++        WM8960_SetModule(dev, kWM8960_ModuleOMIX, RT_TRUE);
++        WM8960_SetModule(dev, kWM8960_ModuleLineOut, RT_TRUE);
++        break;
++    case kWM8960_RouteRecord:
++        /* LINE_IN->ADC->I2S_OUT */
++        /*
++         * Left and right input boost, LIN3BOOST and RIN3BOOST = 0dB
++         */
++        wm8960_write_reg(dev, WM8960_POWER3, 0x30);
++        /* Power up ADC and AIN */
++        WM8960_SetModule(dev, kWM8960_ModuleLineIn, RT_TRUE);
++        WM8960_SetModule(dev, kWM8960_ModuleADC, RT_TRUE);
++        break;
++    default:
++        break;
++    }
++}
++
++void WM8960_SetLeftInput(struct rt_i2c_bus_device *dev, wm8960_input_t input)
++{
++    uint16_t val = 0;
++
++    switch (input)
++    {
++    case kWM8960_InputSingleEndedMic:
++        /* Only LMN1 enabled, LMICBOOST to 13db, LMIC2B enabled */
++        wm8960_read_reg(dev,WM8960_POWER1, &val);
++        val |= (WM8960_POWER1_AINL_MASK | WM8960_POWER1_ADCL_MASK | WM8960_POWER1_MICB_MASK);
++        wm8960_write_reg(dev, WM8960_POWER1, val);
++        wm8960_write_reg(dev, WM8960_LINPATH, 0x138);
++        wm8960_write_reg(dev, WM8960_LINVOL, 0x117);
++        break;
++    case kWM8960_InputDifferentialMicInput2:
++        wm8960_read_reg(dev,WM8960_POWER1, &val);
++        val |= (WM8960_POWER1_AINL_MASK | WM8960_POWER1_ADCL_MASK | WM8960_POWER1_MICB_MASK);
++        wm8960_write_reg(dev, WM8960_POWER1, val);
++        wm8960_write_reg(dev, WM8960_LINPATH, 0x178);
++        wm8960_write_reg(dev, WM8960_LINVOL, 0x117);
++        break;
++    case kWM8960_InputDifferentialMicInput3:
++        wm8960_read_reg(dev,WM8960_POWER1, &val);
++        val |= (WM8960_POWER1_AINL_MASK | WM8960_POWER1_ADCL_MASK | WM8960_POWER1_MICB_MASK);
++        wm8960_write_reg(dev, WM8960_POWER1, val);
++        wm8960_write_reg(dev, WM8960_LINPATH, 0x1B8);
++        wm8960_write_reg(dev, WM8960_LINVOL, 0x117);
++        break;
++    case kWM8960_InputLineINPUT2:
++        wm8960_read_reg(dev,WM8960_POWER1, &val);
++        val |= (WM8960_POWER1_AINL_MASK | WM8960_POWER1_ADCL_MASK);
++        wm8960_write_reg(dev, WM8960_POWER1, val);
++        wm8960_read_reg(dev,WM8960_INBMIX1, &val);
++        val |= 0xE;
++        wm8960_write_reg(dev, WM8960_INBMIX1, val);
++        break;
++    case kWM8960_InputLineINPUT3:
++        wm8960_read_reg(dev,WM8960_POWER1, &val);
++        val |= (WM8960_POWER1_AINL_MASK | WM8960_POWER1_ADCL_MASK);
++        wm8960_write_reg(dev, WM8960_POWER1, val);
++        wm8960_read_reg(dev,WM8960_INBMIX1, &val);
++        val |= 0x70;
++        wm8960_write_reg(dev, WM8960_INBMIX1, val);
++        break;
++    default:
++        break;
++    }
++}
++
++void WM8960_SetRightInput(struct rt_i2c_bus_device *dev, wm8960_input_t input)
++{
++    uint16_t val = 0;
++
++    switch (input)
++    {
++    case kWM8960_InputSingleEndedMic:
++        /* Only LMN1 enabled, LMICBOOST to 13db, LMIC2B enabled */
++        wm8960_read_reg(dev,WM8960_POWER1, &val);
++        val |= (WM8960_POWER1_AINR_MASK | WM8960_POWER1_ADCR_MASK | WM8960_POWER1_MICB_MASK);
++        wm8960_write_reg(dev, WM8960_POWER1, val);
++        wm8960_write_reg(dev, WM8960_RINPATH, 0x138);
++        wm8960_write_reg(dev, WM8960_RINVOL, 0x117);
++        break;
++    case kWM8960_InputDifferentialMicInput2:
++        wm8960_read_reg(dev,WM8960_POWER1, &val);
++        val |= (WM8960_POWER1_AINR_MASK | WM8960_POWER1_ADCR_MASK | WM8960_POWER1_MICB_MASK);
++        wm8960_write_reg(dev, WM8960_POWER1, val);
++        wm8960_write_reg(dev, WM8960_RINPATH, 0x178);
++        wm8960_write_reg(dev, WM8960_RINVOL, 0x117);
++        break;
++    case kWM8960_InputDifferentialMicInput3:
++        wm8960_read_reg(dev,WM8960_POWER1, &val);
++        val |= (WM8960_POWER1_AINR_MASK | WM8960_POWER1_ADCR_MASK | WM8960_POWER1_MICB_MASK);
++        wm8960_write_reg(dev, WM8960_POWER1, val);
++        wm8960_write_reg(dev, WM8960_RINPATH, 0x1B8);
++        wm8960_write_reg(dev, WM8960_RINVOL, 0x117);
++        break;
++    case kWM8960_InputLineINPUT2:
++        wm8960_read_reg(dev,WM8960_POWER1, &val);
++        val |= (WM8960_POWER1_AINR_MASK | WM8960_POWER1_ADCR_MASK);
++        wm8960_write_reg(dev, WM8960_POWER1, val);
++        wm8960_read_reg(dev,WM8960_INBMIX2, &val);
++        val |= 0xE;
++        wm8960_write_reg(dev, WM8960_INBMIX2, val);
++        break;
++    case kWM8960_InputLineINPUT3:
++        wm8960_read_reg(dev,WM8960_POWER1, &val);
++        val |= (WM8960_POWER1_AINR_MASK | WM8960_POWER1_ADCR_MASK);
++        wm8960_write_reg(dev, WM8960_POWER1, val);
++        wm8960_read_reg(dev,WM8960_INBMIX2, &val);
++        val |= 0x70;
++        wm8960_write_reg(dev, WM8960_INBMIX2, val);
++        break;
++    default:
++        break;
++    }
++}
++
++void WM8960_SetProtocol(struct rt_i2c_bus_device *dev, wm8960_protocol_t protocol)
++{
++    wm8960_modify_reg(dev, WM8960_IFACE1, WM8960_IFACE1_FORMAT_MASK | WM8960_IFACE1_LRP_MASK, protocol);
++}
++
++void WM8960_SetVolume(struct rt_i2c_bus_device *dev, wm8960_module_t module, rt_uint32_t volume)
++{
++    uint16_t vol = 0;
++    switch (module)
++    {
++    case kWM8960_ModuleADC:
++        vol = volume;
++        wm8960_write_reg(dev, WM8960_LADC, vol);
++        wm8960_write_reg(dev, WM8960_RADC, vol);
++        /* Update volume */
++        vol = 0x100 | volume;
++        wm8960_write_reg(dev, WM8960_LADC, vol);
++        wm8960_write_reg(dev, WM8960_RADC, vol);
++        break;
++    case kWM8960_ModuleDAC:
++        vol = volume;
++        wm8960_write_reg(dev, WM8960_LDAC, vol);
++        wm8960_write_reg(dev, WM8960_RDAC, vol);
++        vol = 0x100 | volume;
++        wm8960_write_reg(dev, WM8960_LDAC, vol);
++        wm8960_write_reg(dev, WM8960_RDAC, vol);
++        break;
++    case kWM8960_ModuleHP:
++        vol = volume;
++        wm8960_write_reg(dev, WM8960_LOUT1, vol);
++        wm8960_write_reg(dev, WM8960_ROUT1, vol);
++        vol = 0x100 | volume;
++        wm8960_write_reg(dev, WM8960_LOUT1, vol);
++        wm8960_write_reg(dev, WM8960_ROUT1, vol);
++        break;
++    case kWM8960_ModuleLineIn:
++        vol = volume;
++        wm8960_write_reg(dev, WM8960_LINVOL, vol);
++        wm8960_write_reg(dev, WM8960_RINVOL, vol);
++        vol = 0x100 | volume;
++        wm8960_write_reg(dev, WM8960_LINVOL, vol);
++        wm8960_write_reg(dev, WM8960_RINVOL, vol);
++        break;
++    case kWM8960_ModuleSpeaker:
++        vol = volume;
++        wm8960_write_reg(dev, WM8960_LOUT2, vol);
++        wm8960_write_reg(dev, WM8960_ROUT2, vol);
++        vol = 0x100 | volume;
++        wm8960_write_reg(dev, WM8960_LOUT2, vol);
++        wm8960_write_reg(dev, WM8960_ROUT2, vol);
++        break;
++    default:
++        break;
++    }
++}
++
++rt_uint32_t WM8960_GetVolume(struct rt_i2c_bus_device *dev, wm8960_module_t module)
++{
++    uint16_t vol = 0;
++    switch (module)
++    {
++    case kWM8960_ModuleADC:
++        wm8960_read_reg(dev,WM8960_LADC, &vol);
++        vol &= 0xFF;
++        break;
++    case kWM8960_ModuleDAC:
++        wm8960_read_reg(dev,WM8960_LDAC, &vol);
++        vol &= 0xFF;
++        break;
++    case kWM8960_ModuleHP:
++        wm8960_read_reg(dev,WM8960_LOUT1, &vol);
++        vol &= 0x7F;
++        break;
++    case kWM8960_ModuleLineOut:
++        wm8960_read_reg(dev,WM8960_LINVOL, &vol);
++        vol &= 0x3F;
++        break;
++    default:
++        vol = 0;
++        break;
++    }
++    return vol;
++}
++
++void WM8960_SetMute(struct rt_i2c_bus_device *dev, wm8960_module_t module, rt_bool_t isEnabled)
++{
++    switch (module)
++    {
++    case kWM8960_ModuleADC:
++        /*
++         * Digital Mute
++         */
++        if (isEnabled)
++        {
++            wm8960_write_reg(dev, WM8960_LADC, 0x100);
++            wm8960_write_reg(dev, WM8960_RADC, 0x100);
++        }
++        else
++        {
++            wm8960_write_reg(dev, WM8960_LADC, 0x1C3);
++            wm8960_write_reg(dev, WM8960_RADC, 0x1C3);
++        }
++        break;
++    case kWM8960_ModuleDAC:
++        /*
++         * Digital mute
++         */
++        if (isEnabled)
++        {
++            wm8960_write_reg(dev, WM8960_LDAC, 0x100);
++            wm8960_write_reg(dev, WM8960_RDAC, 0x100);
++        }
++        else
++        {
++            wm8960_write_reg(dev, WM8960_LDAC, 0x1FF);
++            wm8960_write_reg(dev, WM8960_RDAC, 0x1FF);
++        }
++        break;
++    case kWM8960_ModuleHP:
++        /*
++         * Analog mute
++         */
++        if (isEnabled)
++        {
++            wm8960_write_reg(dev, WM8960_LOUT1, 0x100);
++            wm8960_write_reg(dev, WM8960_ROUT1, 0x100);
++        }
++        else
++        {
++            wm8960_write_reg(dev, WM8960_LOUT1, 0x16F);
++            wm8960_write_reg(dev, WM8960_ROUT1, 0x16F);
++        }
++        break;
++
++    case kWM8960_ModuleSpeaker:
++        if (isEnabled)
++        {
++            wm8960_write_reg(dev, WM8960_LOUT2, 0x100);
++            wm8960_write_reg(dev, WM8960_ROUT2, 0x100);
++        }
++        else
++        {
++            wm8960_write_reg(dev, WM8960_LOUT2, 0x16F);
++            wm8960_write_reg(dev, WM8960_ROUT2, 0x16f);
++        }
++        break;
++
++    case kWM8960_ModuleLineOut:
++        break;
++    default:
++        break;
++    }
++}
++
++void WM8960_ConfigDataFormat(struct rt_i2c_bus_device *dev, rt_uint32_t sysclk, rt_uint32_t sample_rate, rt_uint32_t bits)
++{
++    uint32_t divider = 0;
++    uint16_t val     = 0;
++
++    /* Compute sample rate divider, dac and adc are the same sample rate */
++    divider = sysclk / sample_rate;
++    if (divider == 256)
++    {
++        val = 0;
++    }
++    if (divider > 256)
++    {
++        val = (((divider / 256U) << 6U) | ((divider / 256U) << 3U));
++    }
++
++    wm8960_write_reg(dev, WM8960_CLOCK1, val);
++
++    /* Compute bclk divider */
++    divider /= bits * 2;
++    switch (divider)
++    {
++    case 4:
++    case 5:
++    case 6:
++        val = (0x1C0 | divider);
++        break;
++    case 8:
++        val = 0x1C7;
++        break;
++    case 11:
++        val = 0x1C8;
++        break;
++    case 12:
++        val = 0x1C9;
++        break;
++    case 16:
++        val = 0x1CA;
++        break;
++    case 22:
++        val = 0x1CB;
++        break;
++    case 24:
++        val = 0x1CC;
++        break;
++    case 32:
++        val = 0x1CF;
++        break;
++    default:
++        break;
++
++    }
++
++    wm8960_write_reg(dev, WM8960_CLOCK2, val);
++    /*
++     * Slave mode (MS = 0), LRP = 0, 32bit WL, left justified (FORMAT[1:0]=0b01)
++     */
++    switch (bits)
++    {
++    case 16:
++        wm8960_modify_reg(dev, WM8960_IFACE1, WM8960_IFACE1_WL_MASK,
++                          WM8960_IFACE1_WL(WM8960_IFACE1_WL_16BITS));
++        break;
++    case 20:
++        wm8960_modify_reg(dev, WM8960_IFACE1, WM8960_IFACE1_WL_MASK,
++                          WM8960_IFACE1_WL(WM8960_IFACE1_WL_20BITS));
++        break;
++    case 24:
++        wm8960_modify_reg(dev, WM8960_IFACE1, WM8960_IFACE1_WL_MASK,
++                          WM8960_IFACE1_WL(WM8960_IFACE1_WL_24BITS));
++        break;
++    case 32:
++        wm8960_modify_reg(dev, WM8960_IFACE1, WM8960_IFACE1_WL_MASK,
++                          WM8960_IFACE1_WL(WM8960_IFACE1_WL_32BITS));
++        break;
++    default:
++        break;
++    }
++}
++
++void WM8960_Deinit(struct rt_i2c_bus_device *dev)
++{
++    WM8960_SetModule(dev, kWM8960_ModuleADC, RT_FALSE);
++    WM8960_SetModule(dev, kWM8960_ModuleDAC, RT_FALSE);
++    WM8960_SetModule(dev, kWM8960_ModuleVREF, RT_FALSE);
++    WM8960_SetModule(dev, kWM8960_ModuleLineIn, RT_FALSE);
++    WM8960_SetModule(dev, kWM8960_ModuleLineOut, RT_FALSE);
++    WM8960_SetModule(dev, kWM8960_ModuleSpeaker, RT_FALSE);
++}
++
++void WM8960_init(struct rt_i2c_bus_device *dev, wm8960_config_t *wm8960Config)
++{
++    wm8960_config_t *config = wm8960Config;
++    rt_memcpy(reg_cache, wm8960_regval_tbl, sizeof(wm8960_regval_tbl));
++    /* Reset the codec */
++    wm8960_write_reg(dev, WM8960_RESET, 0x00);
++    /*
++     * VMID=50K, Enable VREF, AINL, AINR, ADCL and ADCR
++     * I2S_IN (bit 0), I2S_OUT (bit 1), DAP (bit 4), DAC (bit 5), ADC (bit 6) are powered on
++     */
++    wm8960_write_reg(dev, WM8960_POWER1, 0xFE);
++    /*
++     * Enable DACL, DACR, LOUT1, ROUT1, PLL down
++     */
++    wm8960_write_reg(dev, WM8960_POWER2, 0x1E0);
++    /*
++     * Enable left and right channel input PGA, left and right output mixer
++     */
++    wm8960_write_reg(dev, WM8960_POWER3, 0x3C);
++    /* ADC and DAC uses same clock */
++    wm8960_write_reg(dev, WM8960_IFACE2, 0x40);
++    /* set data route */
++    WM8960_SetDataRoute(dev, config->route);
++    /* set data protocol */
++    WM8960_SetProtocol(dev, config->bus);
++    /* set master or slave */
++    WM8960_SetMasterSlave(dev, config->master_slave);
++    /* select left input */
++    WM8960_SetLeftInput(dev, config->leftInputSource);
++    /* select right input */
++    WM8960_SetRightInput(dev, config->rightInputSource);
++    /* speaker power */
++    if (config->enableSpeaker)
++    {
++        WM8960_SetModule(dev, kWM8960_ModuleSpeaker, RT_TRUE);
++    }
++    wm8960_write_reg(dev, WM8960_ADDCTL1, 0x0C0);
++    wm8960_write_reg(dev, WM8960_ADDCTL4, 0x40);
++
++    wm8960_write_reg(dev, WM8960_BYPASS1, 0x0);
++    wm8960_write_reg(dev, WM8960_BYPASS2, 0x0);
++    /*
++     * ADC volume, 0dB
++     */
++    wm8960_write_reg(dev, WM8960_LADC, 0x1C3);
++    wm8960_write_reg(dev, WM8960_RADC, 0x1C3);
++
++    /*
++     * Digital DAC volume, 0dB
++     */
++    wm8960_write_reg(dev, WM8960_LDAC, 0x1E0);
++    wm8960_write_reg(dev, WM8960_RDAC, 0x1E0);
++
++    /*
++     * Headphone volume, LOUT1 and ROUT1, 0dB
++     */
++    wm8960_write_reg(dev, WM8960_LOUT1, 0x16F);
++    wm8960_write_reg(dev, WM8960_ROUT1, 0x16F);
++
++    /* Unmute DAC. */
++    wm8960_write_reg(dev, WM8960_DACCTL1, 0x0000);
++    wm8960_write_reg(dev, WM8960_LINVOL, 0x117);
++    wm8960_write_reg(dev, WM8960_RINVOL, 0x117);
++
++    WM8960_ConfigDataFormat(dev, config->format.mclk_HZ, config->format.sampleRate, config->format.bitWidth);
++}
++void WM8960_SetPlay(struct rt_i2c_bus_device *dev, uint32_t playSource)
++{
++    if (kWM8960_PlaySourcePGA & playSource)
++    {
++        wm8960_modify_reg(dev, WM8960_BYPASS1, 0x80U, 0x80U);
++        wm8960_modify_reg(dev, WM8960_BYPASS2, 0x80U, 0x80U);
++        wm8960_modify_reg(dev, WM8960_LOUTMIX, 0x180U, 0U);
++        wm8960_modify_reg(dev, WM8960_ROUTMIX, 0x180U, 0U);
++    }
++
++    if (playSource & kWM8960_PlaySourceDAC)
++    {
++        wm8960_modify_reg(dev, WM8960_BYPASS1, 0x80U, 0x00U);
++        wm8960_modify_reg(dev, WM8960_BYPASS2, 0x80U, 0x00U);
++        wm8960_modify_reg(dev, WM8960_LOUTMIX, 0x180U, 0x100U);
++        wm8960_modify_reg(dev, WM8960_ROUTMIX, 0x180U, 0x100U);
++    }
++
++    if (playSource & kWM8960_PlaySourceInput)
++    {
++        wm8960_modify_reg(dev, WM8960_BYPASS1, 0x80U, 0x0U);
++        wm8960_modify_reg(dev, WM8960_BYPASS2, 0x80U, 0x0U);
++        wm8960_modify_reg(dev, WM8960_LOUTMIX, 0x180U, 0x80U);
++        wm8960_modify_reg(dev, WM8960_ROUTMIX, 0x180U, 0x80U);
++    }
++}
+diff --git a/bsp/imxrt/libraries/drivers/bsp_wm8960.h b/bsp/imxrt/libraries/drivers/bsp_wm8960.h
+new file mode 100644
+index 000000000..616670dfd
+--- /dev/null
++++ b/bsp/imxrt/libraries/drivers/bsp_wm8960.h
+@@ -0,0 +1,520 @@
++/*
++ * Copyright (c) 2015, Freescale Semiconductor, Inc.
++ * Copyright 2016-2019 NXP
++ * All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef __DRV_WM8960_H__
++#define __DRV_WM8960_H__
++
++#include <rtthread.h>
++#include <rtdevice.h>
++
++#include "fsl_common.h"
++/*!
++ * @addtogroup wm8960
++ * @{
++ */
++
++/*******************************************************************************
++ * Definitions
++ ******************************************************************************/
++/*! @name Driver version */
++/*@{*/
++/*! @brief CLOCK driver version 2.1.0 */
++#define FSL_WM8960_DRIVER_VERSION (MAKE_VERSION(2, 1, 0))
++/*@}*/
++
++/*! @brief wm8960 handle size */
++#ifndef WM8960_HANDLE_SIZE
++#define WM8960_HANDLE_SIZE (100U)
++#endif
++
++/*! @brief Define the register address of WM8960. */
++#define WM8960_LINVOL 0x0
++#define WM8960_RINVOL 0x1
++#define WM8960_LOUT1 0x2
++#define WM8960_ROUT1 0x3
++#define WM8960_CLOCK1 0x4
++#define WM8960_DACCTL1 0x5
++#define WM8960_DACCTL2 0x6
++#define WM8960_IFACE1 0x7
++#define WM8960_CLOCK2 0x8
++#define WM8960_IFACE2 0x9
++#define WM8960_LDAC 0xa
++#define WM8960_RDAC 0xb
++
++#define WM8960_RESET 0xf
++#define WM8960_3D 0x10
++#define WM8960_ALC1 0x11
++#define WM8960_ALC2 0x12
++#define WM8960_ALC3 0x13
++#define WM8960_NOISEG 0x14
++#define WM8960_LADC 0x15
++#define WM8960_RADC 0x16
++#define WM8960_ADDCTL1 0x17
++#define WM8960_ADDCTL2 0x18
++#define WM8960_POWER1 0x19
++#define WM8960_POWER2 0x1a
++#define WM8960_ADDCTL3 0x1b
++#define WM8960_APOP1 0x1c
++#define WM8960_APOP2 0x1d
++
++#define WM8960_LINPATH 0x20
++#define WM8960_RINPATH 0x21
++#define WM8960_LOUTMIX 0x22
++
++#define WM8960_ROUTMIX 0x25
++#define WM8960_MONOMIX1 0x26
++#define WM8960_MONOMIX2 0x27
++#define WM8960_LOUT2 0x28
++#define WM8960_ROUT2 0x29
++#define WM8960_MONO 0x2a
++#define WM8960_INBMIX1 0x2b
++#define WM8960_INBMIX2 0x2c
++#define WM8960_BYPASS1 0x2d
++#define WM8960_BYPASS2 0x2e
++#define WM8960_POWER3 0x2f
++#define WM8960_ADDCTL4 0x30
++#define WM8960_CLASSD1 0x31
++
++#define WM8960_CLASSD3 0x33
++#define WM8960_PLL1 0x34
++#define WM8960_PLL2 0x35
++#define WM8960_PLL3 0x36
++#define WM8960_PLL4 0x37
++
++/*! @brief Cache register number */
++#define WM8960_CACHEREGNUM 56
++
++/*! @brief WM8960_IFACE1 FORMAT bits */
++#define WM8960_IFACE1_FORMAT_MASK 0x03
++#define WM8960_IFACE1_FORMAT_SHIFT 0x00
++#define WM8960_IFACE1_FORMAT_RJ 0x00
++#define WM8960_IFACE1_FORMAT_LJ 0x01
++#define WM8960_IFACE1_FORMAT_I2S 0x02
++#define WM8960_IFACE1_FORMAT_DSP 0x03
++#define WM8960_IFACE1_FORMAT(x) ((x << WM8960_IFACE1_FORMAT_SHIFT) & WM8960_IFACE1_FORMAT_MASK)
++
++/*! @brief WM8960_IFACE1 WL bits */
++#define WM8960_IFACE1_WL_MASK 0x0C
++#define WM8960_IFACE1_WL_SHIFT 0x02
++#define WM8960_IFACE1_WL_16BITS 0x00
++#define WM8960_IFACE1_WL_20BITS 0x01
++#define WM8960_IFACE1_WL_24BITS 0x02
++#define WM8960_IFACE1_WL_32BITS 0x03
++#define WM8960_IFACE1_WL(x) ((x << WM8960_IFACE1_WL_SHIFT) & WM8960_IFACE1_WL_MASK)
++
++/*! @brief WM8960_IFACE1 LRP bit */
++#define WM8960_IFACE1_LRP_MASK 0x10
++#define WM8960_IFACE1_LRP_SHIFT 0x04
++#define WM8960_IFACE1_LRCLK_NORMAL_POL 0x00
++#define WM8960_IFACE1_LRCLK_INVERT_POL 0x01
++#define WM8960_IFACE1_DSP_MODEA 0x00
++#define WM8960_IFACE1_DSP_MODEB 0x01
++#define WM8960_IFACE1_LRP(x) ((x << WM8960_IFACE1_LRP_SHIFT) & WM8960_IFACE1_LRP_MASK)
++
++/*! @brief WM8960_IFACE1 DLRSWAP bit */
++#define WM8960_IFACE1_DLRSWAP_MASK 0x20
++#define WM8960_IFACE1_DLRSWAP_SHIFT 0x05
++#define WM8960_IFACE1_DACCH_NORMAL 0x00
++#define WM8960_IFACE1_DACCH_SWAP 0x01
++#define WM8960_IFACE1_DLRSWAP(x) ((x << WM8960_IFACE1_DLRSWAP_SHIFT) & WM8960_IFACE1_DLRSWAP_MASK)
++
++/*! @brief WM8960_IFACE1 MS bit */
++#define WM8960_IFACE1_MS_MASK 0x40
++#define WM8960_IFACE1_MS_SHIFT 0x06
++#define WM8960_IFACE1_SLAVE 0x00
++#define WM8960_IFACE1_MASTER 0x01
++#define WM8960_IFACE1_MS(x) ((x << WM8960_IFACE1_MS_SHIFT) & WM8960_IFACE1_MS_MASK)
++
++/*! @brief WM8960_IFACE1 BCLKINV bit */
++#define WM8960_IFACE1_BCLKINV_MASK 0x80
++#define WM8960_IFACE1_BCLKINV_SHIFT 0x07
++#define WM8960_IFACE1_BCLK_NONINVERT 0x00
++#define WM8960_IFACE1_BCLK_INVERT 0x01
++#define WM8960_IFACE1_BCLKINV(x) ((x << WM8960_IFACE1_BCLKINV_SHIFT) & WM8960_IFACE1_BCLKINV_MASK)
++
++/*! @brief WM8960_IFACE1 ALRSWAP bit */
++#define WM8960_IFACE1_ALRSWAP_MASK 0x100
++#define WM8960_IFACE1_ALRSWAP_SHIFT 0x08
++#define WM8960_IFACE1_ADCCH_NORMAL 0x00
++#define WM8960_IFACE1_ADCCH_SWAP 0x01
++#define WM8960_IFACE1_ALRSWAP(x) ((x << WM8960_IFACE1_ALRSWAP_SHIFT) & WM8960_IFACE1_ALRSWAP_MASK)
++
++/*! @brief WM8960_POWER1 */
++#define WM8960_POWER1_VREF_MASK 0x40
++#define WM8960_POWER1_VREF_SHIFT 0x06
++
++#define WM8960_POWER1_AINL_MASK 0x20
++#define WM8960_POWER1_AINL_SHIFT 0x05
++
++#define WM8960_POWER1_AINR_MASK 0x10
++#define WM8960_POWER1_AINR_SHIFT 0x04
++
++#define WM8960_POWER1_ADCL_MASK 0x08
++#define WM8960_POWER1_ADCL_SHIFT 0x03
++
++#define WM8960_POWER1_ADCR_MASK 0x0
++#define WM8960_POWER1_ADCR_SHIFT 0x02
++
++#define WM8960_POWER1_MICB_MASK 0x02
++#define WM8960_POWER1_MICB_SHIFT 0x01
++
++#define WM8960_POWER1_DIGENB_MASK 0x01
++#define WM8960_POWER1_DIGENB_SHIFT 0x00
++
++/*! @brief WM8960_POWER2 */
++#define WM8960_POWER2_DACL_MASK 0x100
++#define WM8960_POWER2_DACL_SHIFT 0x08
++
++#define WM8960_POWER2_DACR_MASK 0x80
++#define WM8960_POWER2_DACR_SHIFT 0x07
++
++#define WM8960_POWER2_LOUT1_MASK 0x40
++#define WM8960_POWER2_LOUT1_SHIFT 0x06
++
++#define WM8960_POWER2_ROUT1_MASK 0x20
++#define WM8960_POWER2_ROUT1_SHIFT 0x05
++
++#define WM8960_POWER2_SPKL_MASK 0x10
++#define WM8960_POWER2_SPKL_SHIFT 0x04
++
++#define WM8960_POWER2_SPKR_MASK 0x08
++#define WM8960_POWER2_SPKR_SHIFT 0x03
++
++#define WM8960_POWER3_LMIC_MASK 0x20
++#define WM8960_POWER3_LMIC_SHIFT 0x05
++#define WM8960_POWER3_RMIC_MASK 0x10
++#define WM8960_POWER3_RMIC_SHIFT 0x04
++#define WM8960_POWER3_LOMIX_MASK 0x08
++#define WM8960_POWER3_LOMIX_SHIFT 0x03
++#define WM8960_POWER3_ROMIX_MASK 0x04
++#define WM8960_POWER3_ROMIX_SHIFT 0x02
++/*! @brief WM8960 I2C address. */
++#define WM8960_I2C_ADDR 0x1A
++/*! @brief WM8960 I2C baudrate */
++#define WM8960_I2C_BAUDRATE (100000U)
++
++/*! @brief Modules in WM8960 board. */
++typedef enum _wm8960_module
++{
++    kWM8960_ModuleADC     = 0, /*!< ADC module in WM8960 */
++    kWM8960_ModuleDAC     = 1, /*!< DAC module in WM8960 */
++    kWM8960_ModuleVREF    = 2, /*!< VREF module */
++    kWM8960_ModuleHP      = 3, /*!< Headphone */
++    kWM8960_ModuleMICB    = 4, /*!< Mic bias */
++    kWM8960_ModuleMIC     = 5, /*!< Input Mic */
++    kWM8960_ModuleLineIn  = 6, /*!< Analog in PGA  */
++    kWM8960_ModuleLineOut = 7, /*!< Line out module */
++    kWM8960_ModuleSpeaker = 8, /*!< Speaker module */
++    kWM8960_ModuleOMIX    = 9, /*!< Output mixer */
++} wm8960_module_t;
++
++/*! @brief wm8960 play channel */
++enum _wm8960_play_channel
++{
++    kWM8960_HeadphoneLeft  = 1, /*!< wm8960 headphone left channel */
++    kWM8960_HeadphoneRight = 2, /*!< wm8960 headphone right channel */
++    kWM8960_SpeakerLeft    = 4, /*!< wm8960 speaker left channel */
++    kWM8960_SpeakerRight   = 8, /*!< wm8960 speaker right channel */
++};
++
++/*! @brief wm8960 play source */
++typedef enum _wm8960_play_source
++{
++    kWM8960_PlaySourcePGA   = 1, /*!< wm8960 play source PGA */
++    kWM8960_PlaySourceInput = 2, /*!< wm8960 play source Input */
++    kWM8960_PlaySourceDAC   = 4, /*!< wm8960 play source DAC */
++} wm8960_play_source_t;
++
++/*!
++ * @brief WM8960 data route.
++ * Only provide some typical data route, not all route listed.
++ * Note: Users cannot combine any routes, once a new route is set, the previous one would be replaced.
++ */
++typedef enum _wm8960_route
++{
++    kWM8960_RouteBypass            = 0, /*!< LINEIN->Headphone. */
++    kWM8960_RoutePlayback          = 1, /*!<  I2SIN->DAC->Headphone. */
++    kWM8960_RoutePlaybackandRecord = 2, /*!< I2SIN->DAC->Headphone, LINEIN->ADC->I2SOUT. */
++    kWM8960_RouteRecord            = 5  /*!< LINEIN->ADC->I2SOUT. */
++} wm8960_route_t;
++
++/*!
++ * @brief The audio data transfer protocol choice.
++ * WM8960 only supports I2S format and PCM format.
++ */
++typedef enum _wm8960_protocol
++{
++    kWM8960_BusI2S            = 2,           /*!< I2S type */
++    kWM8960_BusLeftJustified  = 1,           /*!< Left justified mode */
++    kWM8960_BusRightJustified = 0,           /*!< Right justified mode */
++    kWM8960_BusPCMA           = 3,           /*!< PCM A mode */
++    kWM8960_BusPCMB           = 3 | (1 << 4) /*!< PCM B mode */
++} wm8960_protocol_t;
++
++/*! @brief wm8960 input source */
++typedef enum _wm8960_input
++{
++    kWM8960_InputClosed                = 0, /*!< Input device is closed */
++    kWM8960_InputSingleEndedMic        = 1, /*!< Input as single ended mic, only use L/RINPUT1 */
++    kWM8960_InputDifferentialMicInput2 = 2, /*!< Input as differential mic, use L/RINPUT1 and L/RINPUT2 */
++    kWM8960_InputDifferentialMicInput3 = 3, /*!< Input as differential mic, use L/RINPUT1 and L/RINPUT3*/
++    kWM8960_InputLineINPUT2            = 4, /*!< Input as line input, only use L/RINPUT2 */
++    kWM8960_InputLineINPUT3            = 5  /*!< Input as line input, only use L/RINPUT3 */
++} wm8960_input_t;
++
++/*! @brief audio sample rate definition */
++enum _wm8960_sample_rate
++{
++    kWM8960_AudioSampleRate8KHz    = 8000U,   /*!< Sample rate 8000 Hz */
++    kWM8960_AudioSampleRate11025Hz = 11025U,  /*!< Sample rate 11025 Hz */
++    kWM8960_AudioSampleRate12KHz   = 12000U,  /*!< Sample rate 12000 Hz */
++    kWM8960_AudioSampleRate16KHz   = 16000U,  /*!< Sample rate 16000 Hz */
++    kWM8960_AudioSampleRate22050Hz = 22050U,  /*!< Sample rate 22050 Hz */
++    kWM8960_AudioSampleRate24KHz   = 24000U,  /*!< Sample rate 24000 Hz */
++    kWM8960_AudioSampleRate32KHz   = 32000U,  /*!< Sample rate 32000 Hz */
++    kWM8960_AudioSampleRate44100Hz = 44100U,  /*!< Sample rate 44100 Hz */
++    kWM8960_AudioSampleRate48KHz   = 48000U,  /*!< Sample rate 48000 Hz */
++    kWM8960_AudioSampleRate96KHz   = 96000U,  /*!< Sample rate 96000 Hz */
++    kWM8960_AudioSampleRate192KHz  = 192000U, /*!< Sample rate 192000 Hz */
++    kWM8960_AudioSampleRate384KHz  = 384000U, /*!< Sample rate 384000 Hz */
++};
++
++/*! @brief audio bit width */
++enum _wm8960_audio_bit_width
++{
++    kWM8960_AudioBitWidth16bit = 16U, /*!< audio bit width 16 */
++    kWM8960_AudioBitWidth20bit = 20U, /*!< audio bit width 20 */
++    kWM8960_AudioBitWidth24bit = 24U, /*!< audio bit width 24 */
++    kWM8960_AudioBitWidth32bit = 32U, /*!< audio bit width 32 */
++};
++
++/*! @brief wm8960 audio format */
++typedef struct _wm8960_audio_format
++{
++    uint32_t mclk_HZ;    /*!< master clock frequency */
++    uint32_t sampleRate; /*!< sample rate */
++    uint32_t bitWidth;   /*!< bit width */
++} wm8960_audio_format_t;
++
++/*! @brief Initialize structure of WM8960 */
++typedef struct wm8960_config
++{
++    wm8960_route_t route;            /*!< Audio data route.*/
++    wm8960_protocol_t bus;           /*!< Audio transfer protocol */
++    wm8960_audio_format_t format;    /*!< Audio format */
++    rt_bool_t master_slave;               /*!< Master or slave. */
++    rt_bool_t enableSpeaker;              /*!< True means enable class D speaker as output, false means no */
++    wm8960_input_t leftInputSource;  /*!< Left input source for WM8960 */
++    wm8960_input_t rightInputSource; /*!< Right input source for wm8960 */
++    wm8960_play_source_t playSource; /*!< play source */
++    uint8_t slaveAddress;            /*!< wm8960 device address */
++    //codec_i2c_config_t i2cConfig;    /*!< i2c configuration */
++} wm8960_config_t;
++
++/*! @brief wm8960 codec handler
++ * Applicationi should allocate a buffer with WM8960_HANDLE_SIZE for handle definition, such as
++ * uint8_t wm8960HandleBuffer[WM8960_HANDLE_SIZE];
++ * wm8904_handle_t *wm8904Handle = wm8960HandleBuffer;
++ */
++typedef struct _wm8960_handle
++{
++    const wm8960_config_t *config; /*!< wm8904 config pointer */
++    void *i2cHandle;               /*!< i2c handle */
++} wm8960_handle_t;
++/*******************************************************************************
++ * API
++ ******************************************************************************/
++#if defined(__cplusplus)
++extern "C" {
++#endif
++
++/*!
++ * @brief WM8960 initialize function.
++ *
++ * The second parameter is NULL to WM8960 in this version. If users want
++ * to change the settings, they have to use wm8960_write_reg() or wm8960_modify_reg()
++ * to set the register value of WM8960.
++ * Note: If the codec_config is NULL, it would initialize WM8960 using default settings.
++ * The default setting:
++ * codec_config->route = kWM8960_RoutePlaybackandRecord
++ * codec_config->bus = kWM8960_BusI2S
++ * codec_config->master = slave
++ *
++ * @param handle WM8960 handle structure.
++ * @param wm8960Config WM8960 configuration structure.
++ */
++void WM8960_init(struct rt_i2c_bus_device *dev, wm8960_config_t *wm8960Config);
++
++/*!
++ * @brief Deinit the WM8960 codec.
++ *
++ * This function close all modules in WM8960 to save power.
++ *
++ * @param handle WM8960 handle structure pointer.
++ */
++void WM8960_Deinit(struct rt_i2c_bus_device *dev);
++
++/*!
++ * @brief Set audio data route in WM8960.
++ *
++ * This function would set the data route according to route. The route cannot be combined,
++ * as all route would enable different modules.
++ * Note: If a new route is set, the previous route would not work.
++ *
++ * @param handle WM8960 handle structure.
++ * @param route Audio data route in WM8960.
++ */
++void WM8960_SetDataRoute(struct rt_i2c_bus_device *dev, wm8960_route_t route);
++
++/*!
++ * @brief Set left audio input source in WM8960.
++ *
++ * @param handle WM8960 handle structure.
++ * @param input Audio input source.
++ */
++void WM8960_SetLeftInput(struct rt_i2c_bus_device *dev, wm8960_input_t input);
++
++/*!
++ * @brief Set right audio input source in WM8960.
++ *
++ * @param handle WM8960 handle structure.
++ * @param input Audio input source.
++ */
++void WM8960_SetRightInput(struct rt_i2c_bus_device *dev, wm8960_input_t input);
++
++/*!
++ * @brief Set the audio transfer protocol.
++ *
++ * WM8960 only supports I2S, left justified, right justified, PCM A, PCM B format.
++ *
++ * @param handle WM8960 handle structure.
++ * @param bus Audio data transfer protocol.
++ */
++void WM8960_SetProtocol(struct rt_i2c_bus_device *dev, wm8960_protocol_t protocol);
++
++/*!
++ * @brief Set WM8960 as master or slave.
++ *
++ * @param handle WM8960 handle structure.
++ * @param master 1 represent master, 0 represent slave.
++ */
++void WM8960_SetMasterSlave(struct rt_i2c_bus_device *dev, rt_bool_t master);
++
++/*!
++ * @brief Set the volume of different modules in WM8960.
++ *
++ * This function would set the volume of WM8960 modules. Uses need to appoint the module.
++ * The function assume that left channel and right channel has the same volume.
++ *
++ * @param handle WM8960 handle structure.
++ * @param module Module to set volume, it can be ADC, DAC, Headphone and so on.
++ * @param volume Volume value need to be set.
++ */
++void WM8960_SetVolume(struct rt_i2c_bus_device *dev, wm8960_module_t module, rt_uint32_t volume);
++
++/*!
++ * @brief Get the volume of different modules in WM8960.
++ *
++ * This function gets the volume of WM8960 modules. Uses need to appoint the module.
++ * The function assume that left channel and right channel has the same volume.
++ *
++ * @param handle WM8960 handle structure.
++ * @param module Module to set volume, it can be ADC, DAC, Headphone and so on.
++ * @return Volume value of the module.
++ */
++rt_uint32_t WM8960_GetVolume(struct rt_i2c_bus_device *dev, wm8960_module_t module);
++
++/*!
++ * @brief Mute modules in WM8960.
++ *
++ * @param handle WM8960 handle structure.
++ * @param module Modules need to be mute.
++ * @param isEnabled Mute or unmute, 1 represent mute.
++ */
++void WM8960_SetMute(struct rt_i2c_bus_device *dev, wm8960_module_t module, rt_bool_t isEnabled);
++
++/*!
++ * @brief Enable/disable expected devices.
++ *
++ * @param handle WM8960 handle structure.
++ * @param module Module expected to enable.
++ * @param isEnabled Enable or disable moudles.
++ */
++void WM8960_SetModule(struct rt_i2c_bus_device *dev, wm8960_module_t module, rt_bool_t isEnabled);
++
++/*!
++ * @brief SET the WM8960 play source.
++ *
++ * @param handle WM8960 handle structure.
++ * @param playSource play source , can be a value combine of kWM8960_ModuleHeadphoneSourcePGA,
++ * kWM8960_ModuleHeadphoneSourceDAC, kWM8960_ModulePlaySourceInput, kWM8960_ModulePlayMonoRight,
++ * kWM8960_ModulePlayMonoLeft.
++ *
++ * @return kStatus_WM8904_Success if successful, different code otherwise..
++ */
++void WM8960_SetPlay(struct rt_i2c_bus_device *dev, uint32_t playSource);
++
++/*!
++ * @brief Configure the data format of audio data.
++ *
++ * This function would configure the registers about the sample rate, bit depths.
++ *
++ * @param handle WM8960 handle structure pointer.
++ * @param sysclk system clock of the codec which can be generated by MCLK or PLL output.
++ * @param sample_rate Sample rate of audio file running in WM8960. WM8960 now
++ * supports 8k, 11.025k, 12k, 16k, 22.05k, 24k, 32k, 44.1k, 48k and 96k sample rate.
++ * @param bits Bit depth of audio file (WM8960 only supports 16bit, 20bit, 24bit
++ * and 32 bit in HW).
++ */
++void WM8960_ConfigDataFormat(struct rt_i2c_bus_device *dev, uint32_t sysclk, rt_uint32_t sample_rate, rt_uint32_t bits);
++
++/*!
++ * @brief Enable/disable jack detect feature.
++ *
++ * @param handle WM8960 handle structure.
++ * @param isEnabled Enable or disable moudles.
++ */
++void WM8960_SetJackDetect(struct rt_i2c_bus_device *dev, rt_bool_t isEnabled);
++
++/*!
++ * @brief Write register to WM8960 using I2C.
++ *
++ * @param handle WM8960 handle structure.
++ * @param reg The register address in WM8960.
++ * @param val Value needs to write into the register.
++ */
++void wm8960_write_reg(struct rt_i2c_bus_device *dev, rt_uint8_t reg, rt_uint16_t val);
++
++/*!
++ * @brief Read register from WM8960 using I2C.
++ * @param handle WM8960 handle structure.
++ * @param reg The register address in WM8960.
++ * @param val Value written to.
++ */
++void wm8960_read_reg(struct rt_i2c_bus_device *dev, rt_uint8_t reg, rt_uint16_t *val);
++
++/*!
++ * @brief Modify some bits in the register using I2C.
++ * @param handle WM8960 handle structure.
++ * @param reg The register address in WM8960.
++ * @param mask The mask code for the bits want to write. The bit you want to write should be 0.
++ * @param val Value needs to write into the register.
++ */
++void wm8960_modify_reg(struct rt_i2c_bus_device *dev, rt_uint8_t reg, rt_uint16_t mask, rt_uint16_t val);
++
++#if defined(__cplusplus)
++}
++#endif
++
++/*! @} */
++
++#endif /* _FSL_WM8960_H_ */
++
++/*******************************************************************************
++ * API
++ ******************************************************************************/
+diff --git a/bsp/imxrt/libraries/drivers/drv_sai.c b/bsp/imxrt/libraries/drivers/drv_sai.c
+new file mode 100644
+index 000000000..8ca5d0a6a
+--- /dev/null
++++ b/bsp/imxrt/libraries/drivers/drv_sai.c
+@@ -0,0 +1,578 @@
++/*
++ * File: drv_sound.c
++ *
++ * COPYRIGHT (C) 2012-2019, Shanghai Real-Thread Technology Co., Ltd
++ */
++
++
++
++#include <rtthread.h>
++#include <rthw.h>
++#include <rtdef.h>
++
++#ifdef BSP_USING_AUDIO
++#define LOG_TAG              "drv.sai"
++#include <drv_log.h>
++
++#include <rtdevice.h>
++#include "drivers/audio.h"
++#include "bsp_wm8960.h"
++#include "drv_i2c.h"
++#include "drv_sai.h"
++
++
++#define RX_DMA_FIFO_SIZE (2048)
++volatile rt_uint16_t rx_busy = 0;
++volatile rt_uint16_t tx_busy = 0;
++
++struct drv_sai sai_tx = {0};
++struct drv_sai sai_rx = {0};
++wm8960_config_t wm8960Config = {
++    .route     = kWM8960_RoutePlaybackandRecord,
++    .rightInputSource = kWM8960_InputDifferentialMicInput2,
++    .playSource       = kWM8960_PlaySourceDAC,
++    .slaveAddress     = WM8960_I2C_ADDR,
++    .bus              = kWM8960_BusI2S,
++    .format = {.mclk_HZ = 6144000U, .sampleRate = kWM8960_AudioSampleRate16KHz, .bitWidth = kWM8960_AudioBitWidth16bit},
++    .master_slave = false,
++};
++const clock_audio_pll_config_t audioPllConfig =
++{
++    .loopDivider = 32,  /* PLL loop divider. Valid range for DIV_SELECT divider value: 27~54. */
++    .postDivider = 1,   /* Divider after the PLL, should only be 1, 2, 4, 8, 16. */
++    .numerator   = 77,  /* 30 bit numerator of fractional loop divider. */
++    .denominator = 100, /* 30 bit denominator of fractional loop divider */
++};
++sai_transfer_format_t format;
++sai_config_t config;
++sai_transfer_t xfer;
++struct imxrt_sai
++{
++    struct rt_audio_device audio;
++    struct rt_audio_configure play_config;
++    rt_uint16_t volume;
++    rt_uint8_t* tx_fifo;
++    struct rt_i2c_bus_device* i2c_bus;
++    rt_uint8_t* rx_fifo;
++};
++
++struct imxrt_sai imxrt_payer_dev = { 0 };
++static void sai_config(void)
++{
++#ifdef BSP_AUDIO_USING_DMA
++    static struct saidma_tx_config sai_txdma = { .channel = 0U, .request = kDmaRequestMuxSai1Tx };
++    sai_tx.dma_tx = &sai_txdma;
++    sai_tx.dma_flag |= RT_DEVICE_FLAG_DMA_TX;
++#if defined (BSP_USING_AUDIO_RECORD)
++    static struct saidma_rx_config sai_rxdma = { .channel = 1U, .request = kDmaRequestMuxSai1Rx };
++    sai_rx.dma_rx = &sai_rxdma;
++#endif
++#endif
++}
++static void sai_TxDmaCallback(I2S_Type* base, sai_edma_handle_t* handle, rt_int32_t status, void* userData)
++{
++    tx_busy = 1;
++    rt_audio_tx_complete(&imxrt_payer_dev.audio);
++}
++#if defined (BSP_USING_AUDIO_RECORD)
++static void sai_RxDmaCallback(I2S_Type* base, sai_edma_handle_t* handle, rt_int32_t status, void* userData)
++{
++    rx_busy = 1;
++    rt_audio_rx_done(&imxrt_payer_dev.audio, &imxrt_payer_dev.rx_fifo[0], RX_DMA_FIFO_SIZE / 2);
++}
++#endif
++void BOARD_EnableSaiMclkOutput(rt_bool_t enable)
++{
++    if(enable)
++    {
++        IOMUXC_GPR->GPR1 |= IOMUXC_GPR_GPR1_SAI1_MCLK_DIR_MASK;
++    }
++    else
++    {
++        IOMUXC_GPR->GPR1 &= (~IOMUXC_GPR_GPR1_SAI1_MCLK_DIR_MASK);
++    }
++}
++void sai_format(void)
++{
++    SAI_TransferTxCreateHandleEDMA(sai_tx.base, &sai_tx.dma_tx->txHandle, sai_TxDmaCallback, NULL, &sai_tx.dma_tx->edma);
++    SAI_TransferTxSetFormatEDMA(sai_tx.base, &sai_tx.dma_tx->txHandle, &format, DEMO_SAI_CLK_FREQ, DEMO_SAI_CLK_FREQ);
++#if defined (BSP_USING_AUDIO_RECORD)
++    SAI_TransferRxCreateHandleEDMA(sai_rx.base, &sai_rx.dma_rx->rxHandle, sai_RxDmaCallback, NULL, &sai_rx.dma_rx->edma);
++    SAI_TransferRxSetFormatEDMA(sai_rx.base, &sai_rx.dma_rx->rxHandle, &format, DEMO_SAI_CLK_FREQ, DEMO_SAI_CLK_FREQ);
++#endif
++}
++
++void sai_init(void)
++{
++    CLOCK_InitAudioPll(&audioPllConfig);
++    CLOCK_SetMux(kCLOCK_Sai1Mux, DEMO_SAI1_CLOCK_SOURCE_SELECT);
++    CLOCK_SetDiv(kCLOCK_Sai1PreDiv, DEMO_SAI1_CLOCK_SOURCE_PRE_DIVIDER);
++    CLOCK_SetDiv(kCLOCK_Sai1Div, DEMO_SAI1_CLOCK_SOURCE_DIVIDER);
++    BOARD_EnableSaiMclkOutput(RT_TRUE);
++
++    EDMA_CreateHandle(&sai_tx.dma_tx->edma, DMA0, sai_tx.dma_tx->channel);
++    DMAMUX_SetSource(DMAMUX, sai_tx.dma_tx->channel, (rt_uint8_t)sai_tx.dma_tx->request);
++    DMAMUX_EnableChannel(DMAMUX, sai_tx.dma_tx->channel);
++    SAI_TxGetDefaultConfig(&config);
++    SAI_TxInit(sai_tx.base, &config);
++#if defined (BSP_USING_AUDIO_RECORD)
++    EDMA_CreateHandle(&sai_rx.dma_rx->edma, DMA0, sai_rx.dma_rx->channel);
++    DMAMUX_SetSource(DMAMUX, sai_rx.dma_rx->channel, (rt_uint8_t)sai_rx.dma_rx->request);
++    DMAMUX_EnableChannel(DMAMUX, sai_rx.dma_rx->channel);
++    SAI_RxGetDefaultConfig(&config);
++    SAI_RxInit(sai_rx.base, &config);
++#endif
++    format.bitWidth = kSAI_WordWidth16bits;
++    format.channel = 0U;
++    format.sampleRate_Hz = kSAI_SampleRate16KHz;
++    format.masterClockHz = DEMO_SAI_CLK_FREQ;
++    format.protocol = config.protocol;
++    format.stereo = kSAI_Stereo;
++    format.isFrameSyncCompact = true;
++    format.watermark = FSL_FEATURE_SAI_FIFO_COUNT / 2U;
++    SAI_TransferTxCreateHandleEDMA(sai_tx.base, &sai_tx.dma_tx->txHandle, sai_TxDmaCallback, NULL, &sai_tx.dma_tx->edma);
++    SAI_TransferTxSetFormatEDMA(sai_tx.base, &sai_tx.dma_tx->txHandle, &format, DEMO_SAI_CLK_FREQ, DEMO_SAI_CLK_FREQ);
++#if defined (BSP_USING_AUDIO_RECORD)
++    SAI_TransferRxCreateHandleEDMA(sai_rx.base, &sai_rx.dma_rx->rxHandle, sai_RxDmaCallback, NULL, &sai_rx.dma_rx->edma);
++    SAI_TransferRxSetFormatEDMA(sai_rx.base, &sai_rx.dma_rx->rxHandle, &format, DEMO_SAI_CLK_FREQ, DEMO_SAI_CLK_FREQ);
++#endif
++}
++
++void SAI_samplerate_set(rt_uint32_t freq)
++{
++    switch(freq)
++    {
++    case 48000:
++        format.sampleRate_Hz = kSAI_SampleRate48KHz;
++        break;
++    case 44100:
++        format.sampleRate_Hz = kSAI_SampleRate44100Hz;
++        break;
++    case 32000:
++        format.sampleRate_Hz = kSAI_SampleRate32KHz;
++        break;
++    case 24000:
++        format.sampleRate_Hz = kSAI_SampleRate24KHz;
++        break;
++    case 22050:
++        format.sampleRate_Hz = kSAI_SampleRate22050Hz;
++        break;
++    case 16000:
++        format.sampleRate_Hz = kSAI_SampleRate16KHz;
++        break;
++    case 12000:
++        format.sampleRate_Hz = kSAI_SampleRate12KHz;
++        break;
++    case 11025:
++        format.sampleRate_Hz = kSAI_SampleRate11025Hz;
++        break;
++    case 8000:
++        format.sampleRate_Hz = kSAI_SampleRate8KHz;
++        break;
++    default:
++        format.sampleRate_Hz = kSAI_SampleRate16KHz;
++        break;
++    }
++
++}
++
++void SAI_channels_set(rt_uint16_t channels)
++{
++    switch(channels)
++    {
++    case 2:
++        format.stereo = kSAI_Stereo;
++        break;
++    case 1:
++        format.stereo = kSAI_MonoRight;
++        break;
++    case 0:
++        format.stereo = kSAI_MonoLeft;
++        break;
++    default:
++        format.stereo = kSAI_Stereo;
++        break;
++    }
++}
++
++void SAI_samplebits_set(rt_uint16_t samplebits)
++{
++
++    switch(samplebits)
++    {
++    case 16:
++        format.bitWidth = kSAI_WordWidth16bits;
++        break;
++    case 24:
++        format.bitWidth = kSAI_WordWidth24bits;
++        break;
++    case 32:
++        format.bitWidth = kSAI_WordWidth32bits;
++        break;
++    default:
++        format.bitWidth = kSAI_WordWidth16bits;
++        break;
++    }
++}
++
++
++static rt_err_t imxrt_payer_getcaps(struct rt_audio_device* audio, struct rt_audio_caps* caps)
++{
++    rt_err_t result = RT_EOK;
++
++    RT_ASSERT(audio != RT_NULL);
++    struct imxrt_sai* imxrt_audio = (struct imxrt_sai*)audio->parent.user_data;
++
++    switch(caps->main_type)
++    {
++    case AUDIO_TYPE_QUERY: /* qurey the types of hw_codec device */
++    {
++        switch(caps->sub_type)
++        {
++        case AUDIO_TYPE_QUERY:
++            caps->udata.mask = AUDIO_TYPE_OUTPUT | AUDIO_TYPE_MIXER;
++            break;
++
++        default:
++            result = -RT_ERROR;
++            break;
++        }
++
++        break;
++    }
++    case AUDIO_TYPE_INPUT:
++    {
++        switch(caps->sub_type)
++        {
++        case AUDIO_DSP_PARAM:
++            caps->udata.config.channels     = imxrt_audio->play_config.channels;
++            caps->udata.config.samplebits   = imxrt_audio->play_config.samplebits;
++            caps->udata.config.samplerate   = imxrt_audio->play_config.samplerate;
++            break;
++
++        case AUDIO_DSP_SAMPLERATE:
++            caps->udata.config.samplerate   = imxrt_audio->play_config.samplerate;
++            break;
++
++        case AUDIO_DSP_CHANNELS:
++            caps->udata.config.channels     = imxrt_audio->play_config.channels;
++            break;
++
++        case AUDIO_DSP_SAMPLEBITS:
++            caps->udata.config.samplebits   = imxrt_audio->play_config.samplebits;
++            break;
++        default:
++            result = -RT_ERROR;
++            break;
++        }
++        break;
++    }
++    case AUDIO_TYPE_OUTPUT: /* Provide capabilities of OUTPUT unit */
++    {
++        switch(caps->sub_type)
++        {
++        case AUDIO_DSP_PARAM:
++            caps->udata.config.samplerate   = imxrt_audio->play_config.samplerate;
++            caps->udata.config.channels     = imxrt_audio->play_config.channels;
++            caps->udata.config.samplebits   = imxrt_audio->play_config.samplebits;
++            break;
++
++        case AUDIO_DSP_SAMPLERATE:
++            caps->udata.config.samplerate   = imxrt_audio->play_config.samplerate;
++            break;
++
++        case AUDIO_DSP_CHANNELS:
++            caps->udata.config.channels     = imxrt_audio->play_config.channels;
++            break;
++
++        case AUDIO_DSP_SAMPLEBITS:
++            caps->udata.config.samplebits   = imxrt_audio->play_config.samplebits;
++            break;
++
++        default:
++            result = -RT_ERROR;
++            break;
++        }
++
++        break;
++    }
++
++    case AUDIO_TYPE_MIXER: /* report the Mixer Units */
++    {
++        switch(caps->sub_type)
++        {
++        case AUDIO_MIXER_QUERY:
++            caps->udata.mask = AUDIO_MIXER_VOLUME;
++            break;
++
++        case AUDIO_MIXER_VOLUME:
++            caps->udata.value =  WM8960_GetVolume(imxrt_payer_dev.i2c_bus,kWM8960_ModuleDAC);
++            break;
++
++        default:
++            result = -RT_ERROR;
++            break;
++        }
++
++        break;
++    }
++
++    default:
++        result = -RT_ERROR;
++        break;
++    }
++
++    return result;
++}
++
++static rt_err_t imxrt_payer_configure(struct rt_audio_device* audio, struct rt_audio_caps* caps)
++{
++
++    rt_err_t result = RT_EOK;
++    RT_ASSERT(audio != RT_NULL);
++    struct imxrt_sai* imxrt_audio = (struct imxrt_sai*)audio->parent.user_data;
++
++    switch(caps->main_type)
++    {
++    case AUDIO_TYPE_MIXER:
++    {
++        switch(caps->sub_type)
++        {
++        case AUDIO_MIXER_MUTE:
++        {
++            /* set mute mode */
++            WM8960_SetMute(imxrt_payer_dev.i2c_bus, kWM8960_ModuleDAC, RT_FALSE);
++            break;
++        }
++
++        case AUDIO_MIXER_VOLUME:
++        {
++            int volume = caps->udata.value;
++
++            imxrt_audio->volume = volume;
++            /* set mixer volume */
++            WM8960_SetVolume(imxrt_payer_dev.i2c_bus, kWM8960_ModuleDAC, volume);
++
++
++            break;
++        }
++
++        default:
++            result = -RT_ERROR;
++            break;
++        }
++
++        break;
++    }
++
++    case AUDIO_TYPE_OUTPUT:
++    {
++        switch(caps->sub_type)
++        {
++        case AUDIO_DSP_PARAM:
++        {
++            struct rt_audio_configure config = caps->udata.config;
++
++            imxrt_audio->play_config.samplerate = config.samplerate;
++            imxrt_audio->play_config.samplebits = config.samplebits;
++            imxrt_audio->play_config.channels = config.channels;
++
++            SAI_channels_set(config.channels);
++            SAI_samplerate_set(config.samplerate);
++            SAI_samplebits_set(config.samplebits);
++            break;
++        }
++
++        case AUDIO_DSP_SAMPLERATE:
++        {
++            imxrt_audio->play_config.samplerate = caps->udata.config.samplerate;
++            SAI_samplerate_set(caps->udata.config.samplerate);
++            break;
++        }
++
++        case AUDIO_DSP_CHANNELS:
++        {
++            imxrt_audio->play_config.channels = caps->udata.config.channels;
++            SAI_channels_set(caps->udata.config.channels);
++            break;
++        }
++
++        case AUDIO_DSP_SAMPLEBITS:
++        {
++            imxrt_audio->play_config.samplebits = caps->udata.config.samplebits;
++            SAI_samplebits_set(caps->udata.config.samplebits);
++            break;
++        }
++
++        default:
++            result = -RT_ERROR;
++            break;
++        }
++        break;
++    }
++    case AUDIO_TYPE_INPUT:
++    {
++        switch(caps->sub_type)
++        {
++
++        case AUDIO_DSP_PARAM:
++        {
++            imxrt_audio->play_config.samplerate = caps->udata.config.samplerate;
++            imxrt_audio->play_config.channels   = caps->udata.config.channels;
++            imxrt_audio->play_config.samplebits = caps->udata.config.samplebits;
++
++            SAI_TransferTerminateReceiveEDMA(sai_rx.base, &sai_rx.dma_rx->rxHandle);
++            SAI_samplerate_set(caps->udata.config.samplerate);
++            SAI_channels_set(caps->udata.config.channels);
++            SAI_samplebits_set(caps->udata.config.samplebits);
++            break;
++        }
++
++        case AUDIO_DSP_SAMPLERATE:
++        {
++            imxrt_audio->play_config.samplerate = caps->udata.config.samplerate;
++            SAI_samplerate_set(caps->udata.config.samplerate);
++            break;
++        }
++        case AUDIO_DSP_CHANNELS:
++        {
++            imxrt_audio->play_config.channels = caps->udata.config.channels;
++            SAI_channels_set(caps->udata.config.channels);
++            break;
++        }
++
++        case AUDIO_DSP_SAMPLEBITS:
++        {
++            imxrt_audio->play_config.samplebits = caps->udata.config.samplebits;
++            SAI_samplebits_set(caps->udata.config.samplebits);
++            break;
++        }
++
++        default:
++            result = -RT_ERROR;
++            break;
++        }
++        /* After set config, MCLK will stop */
++        SAI_TxSoftwareReset(sai_tx.base, kSAI_ResetTypeSoftware);
++        SAI_RxSoftwareReset(sai_rx.base, kSAI_ResetTypeSoftware);
++        xfer.data = imxrt_payer_dev.tx_fifo; // +i * (AUD_FIFO_SIZE / 4);
++        xfer.dataSize = AUD_BLOCK_SIZE;
++        SAI_TransferSendEDMA(sai_tx.base, &sai_tx.dma_tx->txHandle, &xfer);
++        SAI_TransferReceiveEDMA(sai_rx.base, &sai_rx.dma_rx->rxHandle, &xfer);
++        break;
++    }
++
++    default:
++        break;
++    }
++    return result;
++
++}
++static rt_err_t imxrt_payer_init(struct rt_audio_device* audio)
++{
++    RT_ASSERT(audio != RT_NULL);
++    imxrt_payer_dev.i2c_bus = (struct rt_i2c_bus_device*)rt_device_find(CODEC_I2C_NAME);
++    sai_init();
++    return RT_EOK;
++}
++static rt_err_t imxrt_payer_start(struct rt_audio_device* audio, int stream)
++{
++    RT_ASSERT(audio != RT_NULL);
++
++    sai_format();
++    WM8960_init(imxrt_payer_dev.i2c_bus, &wm8960Config);
++
++    xfer.data = imxrt_payer_dev.rx_fifo;
++    xfer.dataSize = AUD_BLOCK_SIZE;
++#if defined (BSP_USING_AUDIO_RECORD)
++    SAI_TransferReceiveEDMA(sai_rx.base, &sai_rx.dma_rx->rxHandle, &xfer);
++#endif
++    SAI_TransferSendEDMA(sai_tx.base, &sai_tx.dma_tx->txHandle, &xfer);
++    return RT_EOK;
++}
++
++static rt_err_t imxrt_payer_stop(struct rt_audio_device* audio, int stream)
++{
++
++    RT_ASSERT(audio != RT_NULL);
++    SAI_TransferTerminateSendEDMA(sai_tx.base, &sai_tx.dma_tx->txHandle);
++    SAI_TransferTerminateReceiveEDMA(sai_rx.base, &sai_rx.dma_rx->rxHandle);
++    WM8960_Deinit(imxrt_payer_dev.i2c_bus);
++
++    return RT_EOK;
++
++}
++static rt_size_t imxrt_payer_transmit(struct rt_audio_device* audio, const void* writeBuf, void* readBuf, rt_size_t size)
++{
++    RT_ASSERT(audio != RT_NULL);
++#if defined (BSP_USING_AUDIO_RECORD)
++    xfer.data = imxrt_payer_dev.rx_fifo;
++    xfer.dataSize = RX_DMA_FIFO_SIZE;
++    SAI_TransferReceiveEDMA(sai_rx.base, &sai_rx.dma_rx->rxHandle, &xfer);
++    SAI_TransferSendEDMA(sai_tx.base, &sai_tx.dma_tx->txHandle, &xfer);
++#else
++    xfer.data = (rt_uint8_t*)writeBuf;
++    xfer.dataSize = size;
++    SAI_TransferSendEDMA(sai_tx.base, &sai_tx.dma_tx->txHandle, &xfer);
++#endif
++
++    return size;
++}
++
++static void imxrt_payer_buffer_info(struct rt_audio_device* audio, struct rt_audio_buf_info* info)
++{
++    RT_ASSERT(audio != RT_NULL);
++    /**
++     *               AUD_FIFO
++     * +----------------+----------------+
++     * |     block1     |     block2     |
++     * +----------------+----------------+
++     *  \  block_size  /
++     */
++    info->buffer      = imxrt_payer_dev.tx_fifo;
++    info->total_size  = AUD_DMA_FIFO_SIZE;
++    info->block_size  = AUD_DMA_FIFO_SIZE / 2;
++    info->block_count = 2;
++}
++
++static struct rt_audio_ops imxrt_payer_ops =
++{
++    .getcaps     = imxrt_payer_getcaps,
++    .configure   = imxrt_payer_configure,
++    .init        = imxrt_payer_init,
++    .start       = imxrt_payer_start,
++    .stop        = imxrt_payer_stop,
++    .transmit    = imxrt_payer_transmit,
++    .buffer_info = imxrt_payer_buffer_info,
++};
++
++int rt_hw_sound_init(void)
++{
++    rt_uint8_t* tx_fifo = RT_NULL;
++    rt_uint8_t* rx_fifo = RT_NULL;
++
++    sai_tx.base = SAI1;
++    sai_rx.base = SAI1;
++    sai_tx.irqn = SAI1_IRQn;
++    sai_config();
++
++    tx_fifo = rt_calloc(1, AUD_DMA_FIFO_SIZE);
++    rx_fifo = rt_calloc(1, AUD_DMA_FIFO_SIZE);
++    if(tx_fifo == RT_NULL)
++    {
++        return -RT_ENOMEM;
++    }
++
++    rt_memset(tx_fifo, 0, AUD_DMA_FIFO_SIZE);
++    imxrt_payer_dev.tx_fifo = tx_fifo;
++    rt_memset(rx_fifo, 0, AUD_DMA_FIFO_SIZE);
++    imxrt_payer_dev.rx_fifo = rx_fifo;
++
++    imxrt_payer_dev.audio.ops = &imxrt_payer_ops;
++    rt_audio_register(&imxrt_payer_dev.audio, "mic", RT_DEVICE_FLAG_RDWR, &imxrt_payer_dev);
++
++    return RT_EOK;
++}
++INIT_DEVICE_EXPORT(rt_hw_sound_init);
++
++#endif /* BSP_USING_AUDIO*/
+diff --git a/bsp/imxrt/libraries/drivers/drv_sai.h b/bsp/imxrt/libraries/drivers/drv_sai.h
+new file mode 100644
+index 000000000..e3ad83f9b
+--- /dev/null
++++ b/bsp/imxrt/libraries/drivers/drv_sai.h
+@@ -0,0 +1,66 @@
++/*
++ * File: drv_sound.h
++ *
++ * COPYRIGHT (C) 2012-2018, Shanghai Real-Thread Technology Co., Ltd
++ */
++
++#ifndef __DRV_SOUND_H_
++#define __DRV_SOUND_H_
++
++#include <rtthread.h>
++#include <rtdevice.h>
++#include <board.h>
++#include <rtdef.h>
++
++#include <rthw.h>
++#include "fsl_sai.h"
++#include "fsl_dmamux.h"
++#include "fsl_sai_edma.h"
++
++#define AUD_DMA_FIFO_SIZE (2048)
++#define	CODEC_I2C_NAME  ("i2c1")
++/* Select Audio/Video PLL (786.48 MHz) as sai1 clock source */
++#define DEMO_SAI1_CLOCK_SOURCE_SELECT (2U)
++/* Clock pre divider for sai1 clock source */
++#define DEMO_SAI1_CLOCK_SOURCE_PRE_DIVIDER (0U)
++/* Clock divider for sai1 clock source */
++#define DEMO_SAI1_CLOCK_SOURCE_DIVIDER (63U)
++/* Get frequency of sai1 clock */
++#define AUD_BLOCK_CNT	2
++#define AUD_BLOCK_SIZE	1024
++#define AUD_FIFO_SIZE 	(AUD_BLOCK_SIZE * AUD_BLOCK_CNT)
++#define DEMO_SAI_CLK_FREQ                                                        \
++    (CLOCK_GetFreq(kCLOCK_AudioPllClk) / (DEMO_SAI1_CLOCK_SOURCE_DIVIDER + 1U) / \
++     (DEMO_SAI1_CLOCK_SOURCE_PRE_DIVIDER + 1U))
++
++
++#define AUD_DMA_FIFO_SIZE (2048)
++struct saidma_tx_config
++{
++    edma_handle_t edma;
++    rt_uint8_t channel;
++    dma_request_source_t request;
++    sai_edma_handle_t txHandle;
++};
++struct saidma_rx_config
++{
++    edma_handle_t edma;
++    rt_uint8_t channel;
++    dma_request_source_t request;
++    sai_edma_handle_t rxHandle;
++};
++
++struct drv_sai {
++    I2S_Type *base;
++    IRQn_Type irqn;
++    struct saidma_tx_config *dma_tx;
++    struct saidma_rx_config *dma_rx;
++    rt_uint8_t dma_flag;
++    int txBlockIndex;
++    int rxBlockIndex;
++};
++
++void sai_init(void);
++int rt_hw_sound_init(void);
++
++#endif
+diff --git a/bsp/imxrt/libraries/drivers/drv_sdio.c b/bsp/imxrt/libraries/drivers/drv_sdio.c
+new file mode 100644
+index 000000000..aeb6902a3
+--- /dev/null
++++ b/bsp/imxrt/libraries/drivers/drv_sdio.c
+@@ -0,0 +1,469 @@
++/*
++ * Copyright (c) 2006-2018, RT-Thread Development Team
++ *
++ * SPDX-License-Identifier: Apache-2.0
++ *
++ * Change Logs:
++ * Date           Author       Notes
++ * 2017-10-10     Tanek        first version
++ */
++
++#include <rtthread.h>
++#include <rthw.h>
++#include <drivers/mmcsd_core.h>
++
++#include <board.h>
++#include <fsl_usdhc.h>
++#include <fsl_gpio.h>
++#include <fsl_iomuxc.h>
++
++#include <finsh.h>
++
++#define RT_USING_SDIO1
++#define RT_USING_SDIO2
++
++//#define DEBUG
++
++#ifdef DEBUG
++static int enable_log = 1;
++
++#define MMCSD_DGB(fmt, ...)                 \
++    do                                      \
++    {                                       \
++        if (enable_log)                     \
++        {                                   \
++            rt_kprintf(fmt, ##__VA_ARGS__); \
++        }                                   \
++    } while (0)
++#else
++#define MMCSD_DGB(fmt, ...)
++#endif
++
++#define CACHE_LINESIZE              (32)
++
++#define USDHC_ADMA_TABLE_WORDS      (8U)        /* define the ADMA descriptor table length */
++#define USDHC_ADMA2_ADDR_ALIGN      (4U)        /* define the ADMA2 descriptor table addr align size */
++#define IMXRT_MAX_FREQ              (25UL * 1000UL * 1000UL)
++
++#define USDHC_ADMA_TABLE_WORDS      (8U)        /* define the ADMA descriptor table length */
++#define USDHC_ADMA2_ADDR_ALIGN      (4U)        /* define the ADMA2 descriptor table addr align size */
++#define USDHC_READ_BURST_LEN        (8U)        /*!< number of words USDHC read in a single burst */
++#define USDHC_WRITE_BURST_LEN       (8U)        /*!< number of words USDHC write in a single burst */
++#define USDHC_DATA_TIMEOUT          (0xFU)      /*!< data timeout counter value */
++
++/* Read/write watermark level. The bigger value indicates DMA has higher read/write performance. */
++#define USDHC_READ_WATERMARK_LEVEL  (0x80U)
++#define USDHC_WRITE_WATERMARK_LEVEL (0x80U)
++
++/* DMA mode */
++#define USDHC_DMA_MODE kUSDHC_DmaModeAdma2
++
++/* Endian mode. */
++#define USDHC_ENDIAN_MODE kUSDHC_EndianModeLittle
++
++ALIGN(USDHC_ADMA2_ADDR_ALIGN) uint32_t g_usdhcAdma2Table[USDHC_ADMA_TABLE_WORDS] SECTION("NonCacheable");
++
++struct imxrt_mmcsd
++{
++    struct rt_mmcsd_host *host;
++    struct rt_mmcsd_req *req;
++    struct rt_mmcsd_cmd *cmd;
++
++    struct rt_timer timer;
++
++    rt_uint32_t *buf;
++
++    //USDHC_Type *base;
++    usdhc_host_t usdhc_host;
++    clock_div_t usdhc_div;
++    clock_ip_name_t ip_clock;
++
++    uint32_t *usdhc_adma2_table;
++};
++
++static void _mmcsd_gpio_init(struct imxrt_mmcsd *mmcsd)
++{
++
++    CLOCK_EnableClock(kCLOCK_Iomuxc);          /* iomuxc clock (iomuxc_clk_enable): 0x03u */
++}
++static void SDMMCHOST_ErrorRecovery(USDHC_Type *base)
++{
++    uint32_t status = 0U;
++    /* get host present status */
++    status = USDHC_GetPresentStatusFlags(base);
++    /* check command inhibit status flag */
++    if ((status & kUSDHC_CommandInhibitFlag) != 0U)
++    {
++        /* reset command line */
++        USDHC_Reset(base, kUSDHC_ResetCommand, 1000U);
++    }
++    /* check data inhibit status flag */
++    if ((status & kUSDHC_DataInhibitFlag) != 0U)
++    {
++        /* reset data line */
++        USDHC_Reset(base, kUSDHC_ResetData, 1000U);
++    }
++}
++
++static void _mmcsd_host_init(struct imxrt_mmcsd *mmcsd)
++{
++    usdhc_host_t *usdhc_host = &mmcsd->usdhc_host;
++
++    /* Initializes SDHC. */
++    usdhc_host->config.dataTimeout = USDHC_DATA_TIMEOUT;
++    usdhc_host->config.endianMode = USDHC_ENDIAN_MODE;
++    usdhc_host->config.readWatermarkLevel = USDHC_READ_WATERMARK_LEVEL;
++    usdhc_host->config.writeWatermarkLevel = USDHC_WRITE_WATERMARK_LEVEL;
++    usdhc_host->config.readBurstLen = USDHC_READ_BURST_LEN;
++    usdhc_host->config.writeBurstLen = USDHC_WRITE_BURST_LEN;
++
++    USDHC_Init(usdhc_host->base, &(usdhc_host->config));
++}
++
++static void _mmcsd_clk_init(struct imxrt_mmcsd *mmcsd)
++{
++    CLOCK_EnableClock(mmcsd->ip_clock);
++    CLOCK_SetDiv(mmcsd->usdhc_div, 5U);
++}
++
++static void _mmcsd_isr_init(struct imxrt_mmcsd *mmcsd)
++{
++    //NVIC_SetPriority(USDHC1_IRQn, 5U);
++}
++
++static void _mmc_request(struct rt_mmcsd_host *host, struct rt_mmcsd_req *req)
++{
++    struct imxrt_mmcsd *mmcsd;
++    struct rt_mmcsd_cmd *cmd;
++    struct rt_mmcsd_data *data;
++    status_t error;
++    usdhc_adma_config_t dmaConfig;
++    usdhc_transfer_t fsl_content = {0};
++    usdhc_command_t fsl_command = {0};
++    usdhc_data_t fsl_data = {0};
++    rt_uint32_t *buf = NULL;
++
++    RT_ASSERT(host != RT_NULL);
++    RT_ASSERT(req != RT_NULL);
++
++    mmcsd = (struct imxrt_mmcsd *)host->private_data;
++    RT_ASSERT(mmcsd != RT_NULL);
++
++    cmd = req->cmd;
++    RT_ASSERT(cmd != RT_NULL);
++
++    MMCSD_DGB("\tcmd->cmd_code: %02d, cmd->arg: %08x, cmd->flags: %08x --> ", cmd->cmd_code, cmd->arg, cmd->flags);
++
++    data = cmd->data;
++
++    memset(&dmaConfig, 0, sizeof(usdhc_adma_config_t));
++    /* config adma */
++    dmaConfig.dmaMode = USDHC_DMA_MODE;
++    dmaConfig.burstLen = kUSDHC_EnBurstLenForINCR;
++    dmaConfig.admaTable = mmcsd->usdhc_adma2_table;
++    dmaConfig.admaTableWords = USDHC_ADMA_TABLE_WORDS;
++
++    fsl_command.index = cmd->cmd_code;
++    fsl_command.argument = cmd->arg;
++
++    if (cmd->cmd_code == STOP_TRANSMISSION)
++        fsl_command.type = kCARD_CommandTypeAbort;
++    else
++        fsl_command.type = kCARD_CommandTypeNormal;
++
++    switch (cmd->flags & RESP_MASK)
++    {
++    case RESP_NONE:
++        fsl_command.responseType = kCARD_ResponseTypeNone;
++        break;
++    case RESP_R1:
++        fsl_command.responseType = kCARD_ResponseTypeR1;
++        break;
++    case RESP_R1B:
++        fsl_command.responseType = kCARD_ResponseTypeR1b;
++        break;
++    case RESP_R2:
++        fsl_command.responseType = kCARD_ResponseTypeR2;
++        break;
++    case RESP_R3:
++        fsl_command.responseType = kCARD_ResponseTypeR3;
++        break;
++    case RESP_R4:
++        fsl_command.responseType = kCARD_ResponseTypeR4;
++        break;
++    case RESP_R6:
++        fsl_command.responseType = kCARD_ResponseTypeR6;
++        break;
++    case RESP_R7:
++        fsl_command.responseType = kCARD_ResponseTypeR7;
++        break;
++    case RESP_R5:
++        fsl_command.responseType = kCARD_ResponseTypeR5;
++        break;
++    /*
++    case RESP_R5B:
++        fsl_command.responseType = kCARD_ResponseTypeR5b;
++        break;
++    */
++    default:
++        RT_ASSERT(NULL);
++    }
++
++    // command type
++    /*
++    switch (cmd->flags & CMD_MASK)
++    {
++    case CMD_AC:
++        break;
++    case CMD_ADTC:
++        break;
++    case CMD_BC:
++        break;
++    case CMD_BCR:
++        break;
++    }
++    */
++
++    fsl_command.flags = 0;
++    //fsl_command.response
++    //fsl_command.responseErrorFlags
++
++    fsl_content.command = &fsl_command;
++
++    if (data)
++    {
++        if (req->stop != NULL)
++            fsl_data.enableAutoCommand12 = true;
++        else
++            fsl_data.enableAutoCommand12 = false;
++
++        fsl_data.enableAutoCommand23 = false;
++
++        fsl_data.enableIgnoreError = false;
++        fsl_data.dataType = kUSDHC_TransferDataNormal;  //todo : update data type
++        fsl_data.blockSize = data->blksize;
++        fsl_data.blockCount = data->blks;
++
++        MMCSD_DGB(" blksize:%d, blks:%d ", fsl_data.blockSize, fsl_data.blockCount);
++
++        if (((rt_uint32_t)data->buf & (CACHE_LINESIZE - 1)) ||         // align cache(32byte)
++                ((rt_uint32_t)data->buf >  0x00000000 && (rt_uint32_t)data->buf < 0x00080000) /*||  // ITCM
++            ((rt_uint32_t)data->buf >= 0x20000000 && (rt_uint32_t)data->buf < 0x20080000)*/)    // DTCM
++        {
++
++            buf = rt_malloc_align(fsl_data.blockSize * fsl_data.blockCount, CACHE_LINESIZE);
++            RT_ASSERT(buf != RT_NULL);
++
++            MMCSD_DGB(" malloc buf: %p, data->buf:%p, %d ", buf, data->buf, fsl_data.blockSize * fsl_data.blockCount);
++        }
++
++
++        if ((cmd->cmd_code == WRITE_BLOCK) || (cmd->cmd_code == WRITE_MULTIPLE_BLOCK))
++        {
++            if (buf)
++            {
++                MMCSD_DGB(" write(data->buf to buf) ");
++                rt_memcpy(buf, data->buf, fsl_data.blockSize * fsl_data.blockCount);
++                fsl_data.txData = (uint32_t const *)buf;
++            }
++            else
++            {
++                fsl_data.txData = (uint32_t const *)data->buf;
++            }
++
++            fsl_data.rxData = NULL;
++        }
++        else
++        {
++            if (buf)
++            {
++                fsl_data.rxData = (uint32_t *)buf;
++            }
++            else
++            {
++                fsl_data.rxData = (uint32_t *)data->buf;
++            }
++
++            fsl_data.txData = NULL;
++        }
++
++        fsl_content.data = &fsl_data;
++    }
++    else
++    {
++        fsl_content.data = NULL;
++    }
++
++    error = USDHC_TransferBlocking(mmcsd->usdhc_host.base, &dmaConfig, &fsl_content);
++    if (error == kStatus_Fail)
++    {
++        SDMMCHOST_ErrorRecovery(mmcsd->usdhc_host.base);
++        MMCSD_DGB(" ***USDHC_TransferBlocking error: %d*** --> \n", error);
++        cmd->err = -RT_ERROR;
++    }
++
++    if (buf)
++    {
++        if (fsl_data.rxData)
++        {
++            MMCSD_DGB("read copy buf to data->buf ");
++            rt_memcpy(data->buf, buf, fsl_data.blockSize * fsl_data.blockCount);
++        }
++
++        rt_free_align(buf);
++    }
++
++    if ((cmd->flags & RESP_MASK) == RESP_R2)
++    {
++        cmd->resp[3] = fsl_command.response[0];
++        cmd->resp[2] = fsl_command.response[1];
++        cmd->resp[1] = fsl_command.response[2];
++        cmd->resp[0] = fsl_command.response[3];
++        MMCSD_DGB(" resp 0x%08X 0x%08X 0x%08X 0x%08X\n",
++                  cmd->resp[0], cmd->resp[1], cmd->resp[2], cmd->resp[3]);
++    }
++    else
++    {
++        cmd->resp[0] = fsl_command.response[0];
++        MMCSD_DGB(" resp 0x%08X\n", cmd->resp[0]);
++    }
++
++    mmcsd_req_complete(host);
++
++    return;
++}
++
++static void _mmc_set_iocfg(struct rt_mmcsd_host *host, struct rt_mmcsd_io_cfg *io_cfg)
++{
++
++    struct imxrt_mmcsd *mmcsd;
++    unsigned int usdhc_clk;
++    unsigned int bus_width;
++    uint32_t src_clk;
++
++    RT_ASSERT(host != RT_NULL);
++    RT_ASSERT(host->private_data != RT_NULL);
++    RT_ASSERT(io_cfg != RT_NULL);
++
++    mmcsd = (struct imxrt_mmcsd *)host->private_data;
++    usdhc_clk = io_cfg->clock;
++    bus_width = io_cfg->bus_width;
++
++    if (usdhc_clk > IMXRT_MAX_FREQ)
++        usdhc_clk = IMXRT_MAX_FREQ;
++    src_clk = (CLOCK_GetSysPfdFreq(kCLOCK_Pfd2) / (CLOCK_GetDiv(mmcsd->usdhc_div) + 1U));
++
++    MMCSD_DGB("\tsrc_clk: %d, usdhc_clk: %d, bus_width: %d\n", src_clk, usdhc_clk, bus_width);
++
++    if (usdhc_clk)
++    {
++        USDHC_SetSdClock(mmcsd->usdhc_host.base, src_clk, usdhc_clk);
++        //CLOCK_EnableClock(mmcsd->ip_clock);
++
++        /* Change bus width */
++        if (bus_width == MMCSD_BUS_WIDTH_8)
++            USDHC_SetDataBusWidth(mmcsd->usdhc_host.base, kUSDHC_DataBusWidth8Bit);
++        else if (bus_width == MMCSD_BUS_WIDTH_4)
++            USDHC_SetDataBusWidth(mmcsd->usdhc_host.base, kUSDHC_DataBusWidth4Bit);
++        else if (bus_width == MMCSD_BUS_WIDTH_1)
++            USDHC_SetDataBusWidth(mmcsd->usdhc_host.base, kUSDHC_DataBusWidth1Bit);
++        else
++            RT_ASSERT(RT_NULL);
++    }
++    else
++    {
++        //CLOCK_DisableClock(mmcsd->ip_clock);
++    }
++
++}
++
++#ifdef DEBUG
++static void log_toggle(int en)
++{
++    enable_log = en;
++}
++FINSH_FUNCTION_EXPORT(log_toggle, toglle log dumple);
++#endif
++
++//static rt_int32_t _mmc_get_card_status(struct rt_mmcsd_host *host)
++//{
++//    MMCSD_DGB("%s, start\n", __func__);
++//    MMCSD_DGB("%s, end\n", __func__);
++//
++//    return 0;
++//}
++//
++//static void _mmc_enable_sdio_irq(struct rt_mmcsd_host *host, rt_int32_t enable)
++//{
++//
++//}
++
++static const struct rt_mmcsd_host_ops ops =
++{
++    _mmc_request,
++    _mmc_set_iocfg,
++    RT_NULL,//_mmc_get_card_status,
++    RT_NULL,//_mmc_enable_sdio_irq,
++};
++
++rt_int32_t _imxrt_mci_init(void)
++{
++    struct rt_mmcsd_host *host;
++    struct imxrt_mmcsd *mmcsd;
++
++    host = mmcsd_alloc_host();
++    if (!host)
++    {
++        return -RT_ERROR;
++    }
++
++    mmcsd = rt_malloc(sizeof(struct imxrt_mmcsd));
++    if (!mmcsd)
++    {
++        rt_kprintf("alloc mci failed\n");
++        goto err;
++    }
++
++    rt_memset(mmcsd, 0, sizeof(struct imxrt_mmcsd));
++    mmcsd->usdhc_host.base = USDHC1;
++    mmcsd->usdhc_div = kCLOCK_Usdhc1Div;
++    mmcsd->usdhc_adma2_table = g_usdhcAdma2Table;
++
++    host->ops = &ops;
++    host->freq_min = 375000;
++    host->freq_max = 25000000;
++    host->valid_ocr = VDD_32_33 | VDD_33_34;
++    host->flags = MMCSD_BUSWIDTH_4 | MMCSD_MUTBLKWRITE | \
++                  MMCSD_SUP_HIGHSPEED | MMCSD_SUP_SDIO_IRQ;
++    host->max_seg_size = 65535;
++    host->max_dma_segs = 2;
++    host->max_blk_size = 512;
++    host->max_blk_count = 4096;
++
++    mmcsd->host = host;
++
++    _mmcsd_clk_init(mmcsd);
++    _mmcsd_isr_init(mmcsd);
++    _mmcsd_gpio_init(mmcsd);
++    _mmcsd_host_init(mmcsd);
++
++    host->private_data = mmcsd;
++
++    mmcsd_change(host);
++
++    return 0;
++
++err:
++    mmcsd_free_host(host);
++
++    return -RT_ENOMEM;
++}
++
++int imxrt_mci_init(void)
++{
++    /* initilize sd card */
++    _imxrt_mci_init();
++
++    return 0;
++}
++INIT_DEVICE_EXPORT(imxrt_mci_init);

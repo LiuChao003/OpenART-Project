@@ -1,0 +1,375 @@
+menu "Hardware Drivers & NXP Software Component Config"
+
+config BSP_USING_QSPIFLASH
+    bool
+    default y
+	
+config SOC_IMXRT1021DAG5A
+    bool 
+    select SOC_MIMXRT1020_SERIES
+	select RT_USING_COMPONENTS_INIT
+    select RT_USING_USER_MAIN
+    default y
+
+
+menu "On-chip Peripheral Drivers"
+
+	config BSP_USING_DMA
+        bool "Enable DMA"
+        default n
+
+    config BSP_USING_GPIO
+        bool "Enable GPIO"
+        select RT_USING_PIN
+        default y
+		
+    menuconfig BSP_USING_CAN
+        bool "Enable CAN"
+        select RT_USING_CAN
+        default n
+
+        if BSP_USING_CAN
+            config BSP_USING_CAN1
+                bool "Enable CAN1"
+                default y
+        endif
+
+    menuconfig BSP_USING_LPUART
+        bool "Enable UART"
+        select RT_USING_SERIAL
+        default y
+        
+        if BSP_USING_LPUART
+            config BSP_USING_LPUART1
+                bool "Enable LPUART1"
+                default y
+
+                config BSP_LPUART1_RX_USING_DMA
+                    bool "Enable LPUART1 RX DMA"
+                    depends on BSP_USING_LPUART1
+                    select BSP_USING_DMA
+                    select RT_SERIAL_USING_DMA
+                    default n
+
+                    config BSP_LPUART1_RX_DMA_CHANNEL
+                        depends on BSP_LPUART1_RX_USING_DMA
+                        int "Set LPUART1 RX DMA channel (0-32)"
+                        default 0
+
+                config BSP_LPUART1_TX_USING_DMA
+                    bool "Enable LPUART1 TX DMA"
+                    depends on BSP_USING_LPUART1
+                    select BSP_USING_DMA
+                    select RT_SERIAL_USING_DMA
+                    default n
+
+                    config BSP_LPUART1_TX_DMA_CHANNEL
+                        depends on BSP_LPUART1_TX_USING_DMA
+                        int "Set LPUART1 TX DMA channel (0-32)"
+                        default 1
+        endif
+	menuconfig BSP_USING_HWTIMER
+			bool "Enable GPT"
+			default n
+			select RT_USING_HWTIMER
+			if BSP_USING_TIM
+				config BSP_USING_HWTIMER1
+					bool "Enable GPT1"
+					default n
+
+				config BSP_USING_HWTIMER2
+					bool "Enable GPT2"
+					default n
+			endif
+    menuconfig BSP_USING_PWM
+        bool "Enable PWM"
+        default n
+        select RT_USING_PWM
+        if BSP_USING_PWM
+            menuconfig BSP_USING_PWM1
+                bool "Enable output pwm1"
+                default n
+                if BSP_USING_PWM1
+                    config BSP_USING_PWM1_CH3
+                        bool "Enable PWM1 channel3"
+                        default n
+                endif
+
+            menuconfig BSP_USING_PWM4
+                bool "Enable output pwm4"
+                default n
+                if BSP_USING_PWM4
+                    config BSP_USING_PWM4_CH0
+                        bool "Enable PWM4 channel0"
+                        default n
+
+                    config BSP_USING_PWM4_CH1
+                        bool "Enable PWM4 channel1"
+                        default n
+                endif
+        endif
+
+    menuconfig BSP_USING_I2C
+        bool "Enable I2C"
+        select RT_USING_I2C
+        default n
+        if BSP_USING_I2C
+            config BSP_USING_I2C1
+                bool "Enable I2C1"
+                default n
+            choice
+                prompt "Select I2C1 badurate"
+                default HW_I2C1_BADURATE_100kHZ
+
+                config HW_I2C1_BADURATE_100kHZ
+                    bool "Badurate 100kHZ"
+
+                config HW_I2C1_BADURATE_400kHZ
+                    bool "Badurate 400kHZ"
+            endchoice
+        endif
+    menuconfig BSP_USING_SPI
+        bool "Enable SPI"
+        default n
+        select RT_USING_SPI
+        if BSP_USING_SPI
+            menuconfig BSP_USING_SPI1
+                bool "Enable SPI1"
+                default n
+                if BSP_USING_SPI1
+                    config BSP_SPI_USING_DMA
+                         bool "Enable SPI1 DMA"
+                         default n
+				endif		 
+        endif
+    menuconfig BSP_USING_ADC
+        bool "Enable ADC"
+        default n
+        select RT_USING_ADC
+        if BSP_USING_ADC
+            config BSP_USING_ADC1
+                bool "Enable ADC1"
+                default n
+        endif		
+    config BSP_USING_RTC
+        bool "Enable RTC"
+        select RT_USING_RTC
+        default n
+
+endmenu
+
+menu "Onboard Peripheral Drivers"
+	config BSP_USING_RGB
+			bool "Enable RGB LED (PWM1_CH3A, PWM4_CH0A and PWM4_CH1A)"
+			select BSP_USING_PWM1
+			select BSP_USING_PWM4
+			select BSP_USING_PWM1_CH3
+			select BSP_USING_PWM4_CH0
+			select BSP_USING_PWM4_CH1
+			default n
+
+		config BSP_USING_MPU6050
+			bool "Enable MPU6050 (I2C1:J11 --> SCL; K11 --> SDA)"
+			select BSP_USING_I2C1
+			select PKG_USING_MPU6XXX
+			default n
+
+		menuconfig BSP_USING_AP3216C
+			bool "Enable AP3216C (I2C1:J11 --> SCL; K11 --> SDA)"
+			select BSP_USING_I2C1
+			select PKG_USING_AP3216C
+			default n
+			if BSP_USING_AP3216C
+				config AP3216C_USING_HW_INT
+				bool "Enable interrupt"
+				default n
+			endif
+
+		config BSP_USING_EEPROM
+			bool "Enable I2C EEPROM (I2C1:J11 --> SCL; K11 --> SDA)"
+			select BSP_USING_I2C1
+			select  PKG_USING_AT24CXX
+			default n
+
+		config BSP_USING_RS232
+			bool "Enable RS232"
+			select BSP_USING_LPUART2
+			default n
+
+		config BSP_USING_RS485
+			bool "Enable RS485"
+			select BSP_USING_LPUART5
+			default n
+
+endmenu
+
+menu "Board extended module Drivers"
+
+endmenu
+menu "Software Components"
+	config NXP_USING_MICROPYTHON
+			bool "MicroPython: A lean and efficient Python implementation for microcontrollers and constrained systems."
+    		select RT_USING_LIBC
+    		select RT_USING_RTC
+    		default n
+	if NXP_USING_MICROPYTHON		
+		menu "Hardware Module"
+	        config MICROPYTHON_USING_MACHINE_I2C
+	            bool "machine i2c: enable i2c functions for machine module"
+	            select RT_USING_I2C
+	            default n
+	
+	        config MICROPYTHON_USING_MACHINE_SPI
+	            bool "machine spi: enable spi functions for machine module"
+	            select RT_USING_SPI
+	            default n
+	
+	        config MICROPYTHON_USING_MACHINE_UART
+	            bool "machine uart: enable uart functions for machine module"
+	            select RT_USING_SERIAL
+	            default n
+	
+	        config MICROPYTHON_USING_MACHINE_RTC
+	            bool "machine rtc: enable rtc functions for machine module"
+	            select RT_USING_RTC
+	            default n
+	
+	        config MICROPYTHON_USING_MACHINE_PWM
+	            bool "machine pwm: enable pwm functions for machine module"
+	            select RT_USING_PWM
+	            default n
+	
+	        config MICROPYTHON_USING_MACHINE_ADC
+	            bool "machine adc: enable adc functions for machine module"
+	            select RT_USING_ADC
+	            default n
+	            
+	        config MICROPYTHON_USING_MACHINE_WDT
+	            bool "machine watchdog: enable watchdog functions for machine module"
+	            select RT_USING_WDT
+	            default n
+	       
+	        config MICROPYTHON_USING_MACHINE_TIMER
+	            bool "machine timer: enable timer functions for machine module"
+	            select RT_USING_HWTIMER
+	            default n
+	
+	        config MICROPYTHON_USING_NETWORK
+	            bool "network: network drivers and routing configuration"
+	            default n
+	
+	        if MICROPYTHON_USING_NETWORK
+	            config MICROPYTHON_USING_WLAN
+	            bool "network.WLAN: network WLAN framework configuration"
+	            default n
+	        endif
+	
+	        config MICROPYTHON_USING_MACHINE_LCD
+	            bool "machine LCD: enable LCD functions for machine module"
+	            select BSP_USING_LCD
+	            select MICROPYTHON_USING_UOS
+	            default n
+	    endmenu
+	
+	    menu "System Module"
+	        config MICROPYTHON_USING_UOS
+	            bool "uos: basic 'operating system' services"
+	            select RT_USING_DFS
+	            default n
+	
+	        if MICROPYTHON_USING_UOS
+	            config MICROPYTHON_USING_FILE_SYNC_VIA_IDE
+	                bool "filesync: sync files through MicroPython IDE"
+	                default y
+	        endif
+	
+	        config MICROPYTHON_USING_THREAD
+	            bool "_thread: multithreading support"
+	            default n
+	
+	        config MICROPYTHON_USING_USELECT
+	            bool "uselect: wait for events on a set of streams"
+	            default n
+	
+	        config MICROPYTHON_USING_UCTYPES
+	            bool "uctypes: create and manipulate C data types in Python"
+	            default n
+	
+	        config MICROPYTHON_USING_UERRNO
+	            bool "uerrno: system error codes"
+	            default n
+	
+	        if PKG_MICROPYTHON_VER_NUM > 0x11000
+	            config MICROPYTHON_USING_FFI
+	                bool "ffi: foreign function interface for native program"
+	                select RT_USING_MODULE
+	                default n
+	        endif
+	    endmenu
+	
+	    menu "Tools Module"
+	        config MICROPYTHON_USING_CMATH
+	            bool "cmath: mathematical functions for complex numbers"
+	            default n
+	
+	        config MICROPYTHON_USING_UBINASCII
+	            bool "ubinascii: binary/ASCII conversions"
+	            default n
+	
+	        config MICROPYTHON_USING_UHASHLIB
+	            bool "uhashlib: hashing algorithms"
+	            default n
+	
+	        config MICROPYTHON_USING_UHEAPQ
+	            bool "uheapq: heap queue algorithm"
+	            default n
+	
+	        config MICROPYTHON_USING_UJSON
+	            bool "ujson: JSON encoding and decoding"
+	            select MICROPYTHON_USING_UOS
+	            default n
+	
+	        config MICROPYTHON_USING_URE
+	            bool "ure: simple regular expressions"
+	            default n
+	
+	        config MICROPYTHON_USING_UZLIB
+	            bool "uzlib: zlib decompression"
+	            default n
+	
+	        config MICROPYTHON_USING_URANDOM
+	            bool "urandom: random variable generators"
+	            default n
+	    endmenu
+	
+	    menu "Network Module"
+	        config MICROPYTHON_USING_USOCKET
+	            bool "usocket: socket operations and some related functions"
+	            select RT_USING_SAL
+	            select SAL_USING_POSIX
+	            select RT_LWIP_IGMP
+	            default n
+	
+	        config MICROPYTHON_USING_USSL
+	            bool "ussl: secure sockets layer for https protocol"
+	            select PKG_USING_MBEDTLS
+	            default n
+	    endmenu
+	
+	    config PKG_MICROPYTHON_HEAP_SIZE
+	        int
+	        prompt "Heap size for python run environment"
+	        default 8192
+	endif        
+	menu "OpenMV"
+		config NXP_USING_OPENMV
+			bool "Enable OpenMV from NXP ported"
+			select NXP_USING_MICROPYTHON
+			default n
+	endmenu
+	
+	menu "AI Demo"
+	endmenu
+	
+endmenu
+endmenu

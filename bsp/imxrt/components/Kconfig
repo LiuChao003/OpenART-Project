@@ -1,0 +1,206 @@
+menu "NXP Software Component Config"
+
+menu "Software Components"
+	config NXP_USING_MICROPYTHON
+			bool "MicroPython: A lean and efficient Python implementation for microcontrollers and constrained systems."
+    		select RT_USING_LIBC
+    		select RT_USING_RTC
+    		default n
+	if NXP_USING_MICROPYTHON		
+		menu "Hardware Module"
+	        config MICROPYTHON_USING_MACHINE_I2C
+	            bool "machine i2c: enable i2c functions for machine module"
+	            select RT_USING_I2C
+	            default n
+	
+	        config MICROPYTHON_USING_MACHINE_SPI
+	            bool "machine spi: enable spi functions for machine module"
+	            select RT_USING_SPI
+	            default n
+	
+	        config MICROPYTHON_USING_MACHINE_UART
+	            bool "machine uart: enable uart functions for machine module"
+	            select RT_USING_SERIAL
+	            default n
+	
+	        config MICROPYTHON_USING_MACHINE_RTC
+	            bool "machine rtc: enable rtc functions for machine module"
+	            select RT_USING_RTC
+	            default n
+	
+	        config MICROPYTHON_USING_MACHINE_PWM
+	            bool "machine pwm: enable pwm functions for machine module"
+	            select RT_USING_PWM
+	            default n
+	
+	        config MICROPYTHON_USING_MACHINE_ADC
+	            bool "machine adc: enable adc functions for machine module"
+	            select RT_USING_ADC
+	            default n
+	            
+	        config MICROPYTHON_USING_MACHINE_WDT
+	            bool "machine watchdog: enable watchdog functions for machine module"
+	            select RT_USING_WDT
+	            default n
+	       
+	        config MICROPYTHON_USING_MACHINE_TIMER
+	            bool "machine timer: enable timer functions for machine module"
+	            select RT_USING_HWTIMER
+	            default n
+	
+	        config MICROPYTHON_USING_NETWORK
+	            bool "network: network drivers and routing configuration"
+	            default n
+	
+	        if MICROPYTHON_USING_NETWORK
+	            config MICROPYTHON_USING_WLAN
+	            bool "network.WLAN: network WLAN framework configuration"
+	            default n
+	        endif
+	
+	        config MICROPYTHON_USING_MACHINE_LCD
+	            bool "machine LCD: enable LCD functions for machine module"
+	            select BSP_USING_LCD
+	            select MICROPYTHON_USING_UOS
+	            default n
+	    endmenu
+	
+	    menu "System Module"
+	    	config MICROPY_QSTR_BYTES_IN_HASH
+	    		int "QString length"
+	    		range 1 2
+	    		default 2
+	    		
+	        config MICROPYTHON_USING_UOS
+	            bool "uos: basic 'operating system' services"
+	            select RT_USING_DFS
+	            default n
+	
+	        if MICROPYTHON_USING_UOS
+	            config MICROPYTHON_USING_FILE_SYNC_VIA_IDE
+	                bool "filesync: sync files through MicroPython IDE"
+	                default y
+	        endif
+	
+	        config MICROPYTHON_USING_THREAD
+	            bool "_thread: multithreading support"
+	            default n
+	
+	        config MICROPYTHON_USING_USELECT
+	            bool "uselect: wait for events on a set of streams"
+	            default n
+	
+	        config MICROPYTHON_USING_UCTYPES
+	            bool "uctypes: create and manipulate C data types in Python"
+	            default n
+	
+	        config MICROPYTHON_USING_UERRNO
+	            bool "uerrno: system error codes"
+	            default n
+	
+	        if PKG_MICROPYTHON_VER_NUM > 0x11000
+	            config MICROPYTHON_USING_FFI
+	                bool "ffi: foreign function interface for native program"
+	                select RT_USING_MODULE
+	                default n
+	        endif
+	    endmenu
+	
+	    menu "Tools Module"
+	        config MICROPYTHON_USING_CMATH
+	            bool "cmath: mathematical functions for complex numbers"
+	            default n
+	
+	        config MICROPYTHON_USING_UBINASCII
+	            bool "ubinascii: binary/ASCII conversions"
+	            default n
+	
+	        config MICROPYTHON_USING_UHASHLIB
+	            bool "uhashlib: hashing algorithms"
+	            default n
+	
+	        config MICROPYTHON_USING_UHEAPQ
+	            bool "uheapq: heap queue algorithm"
+	            default n
+	
+	        config MICROPYTHON_USING_UJSON
+	            bool "ujson: JSON encoding and decoding"
+	            select MICROPYTHON_USING_UOS
+	            default n
+	
+	        config MICROPYTHON_USING_URE
+	            bool "ure: simple regular expressions"
+	            default n
+	
+	        config MICROPYTHON_USING_UZLIB
+	            bool "uzlib: zlib decompression"
+	            default n
+	
+	        config MICROPYTHON_USING_URANDOM
+	            bool "urandom: random variable generators"
+	            default n
+	    endmenu
+	
+	    menu "Network Module"
+	        config MICROPYTHON_USING_USOCKET
+	            bool "usocket: socket operations and some related functions"
+	            select RT_USING_SAL
+	            select SAL_USING_POSIX
+	            select RT_LWIP_IGMP
+	            default n
+	
+	        config MICROPYTHON_USING_USSL
+	            bool "ussl: secure sockets layer for https protocol"
+	            select PKG_USING_MBEDTLS
+	            default n
+	    endmenu
+	
+	    config PKG_MICROPYTHON_HEAP_SIZE
+	        int
+	        prompt "Heap size for python run environment"
+	        default 8192
+	endif        
+	menu "OpenMV"
+		config NXP_USING_OPENMV
+			bool "Enable OpenMV from NXP ported"
+			select NXP_USING_MICROPYTHON
+			default n
+		config NXP_USING_USB_STACK
+			bool "Use NXP USB Stack"
+			depends on NXP_USING_OPENMV
+			default y
+	endmenu
+	
+	menu "OpenMV Camera"
+		config RT_USING_CSI
+			bool "Enable CSI"
+			select RT_USING_CSI
+			depends on NXP_USING_OPENMV
+			default n
+		config SENSOR_MT9V034
+			bool "Select MT9V034"
+			select SENSOR_MT9V034
+			default n
+		config SENSOR_OV2640
+			bool "Select OV2640"
+			select SENSOR_OV2640
+			default n
+		config SENSOR_OV5640
+			bool "Select OV5640"
+			select SENSOR_OV5640
+			default n
+		config SENSOR_OV7725
+			bool "Select OV7725"
+			select SENSOR_OV7725
+			default n
+		config SENSOR_OV9650
+			bool "Select OV9650"
+			select SENSOR_OV9650
+			default n
+	endmenu
+	menu "AI Demo"
+	endmenu
+	
+endmenu
+
+endmenu

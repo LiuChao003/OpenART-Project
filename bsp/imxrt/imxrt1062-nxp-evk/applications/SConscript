@@ -1,0 +1,20 @@
+import rtconfig
+from building import *
+
+cwd = GetCurrentDir()
+src = Glob('main.c')
+if  GetDepend('NXP_USING_OPENMV'):
+	src += Glob('omv_main.c')
+
+CPPPATH = [cwd]
+
+# add for startup script 
+
+if rtconfig.CROSS_TOOL == 'gcc':
+    LOCAL_CCFLAGS = ' -std=c99 __START=entry'
+elif rtconfig.CROSS_TOOL == 'keil':
+    LOCAL_CCFLAGS = ' --c99 --gnu'
+    
+group = DefineGroup('Applications', src, depend = [''], CPPPATH = CPPPATH, LOCAL_CCFLAGS=LOCAL_CCFLAGS)
+
+Return('group')
